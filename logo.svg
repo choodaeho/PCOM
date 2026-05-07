@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="210" viewBox="0 0 680 210" role="img">
+  <title>폴릿 (Polit) 웹 로고</title>
+  <desc>보수(빨강), 중도(보라), 진보(파랑) 세 가지 정치 진영을 나타내는 삼색 원형 엠블럼과 POLIT 워드마크</desc>
+  <defs>
+    <clipPath id="logo-clip">
+      <circle cx="210" cy="105" r="70"/>
+    </clipPath>
+  </defs>
+
+  <!-- Three faction color bands -->
+  <rect x="140" y="35" width="46.7" height="140" fill="#E24B4A" clip-path="url(#logo-clip)"/>
+  <rect x="186.7" y="35" width="46.7" height="140" fill="#7F77DD" clip-path="url(#logo-clip)"/>
+  <rect x="233.4" y="35" width="46.6" height="140" fill="#378ADD" clip-path="url(#logo-clip)"/>
+
+  <!-- Band dividers -->
+  <line x1="186.7" y1="35" x2="186.7" y2="175" stroke="white" stroke-opacity="0.3" stroke-width="2" clip-path="url(#logo-clip)"/>
+  <line x1="233.4" y1="35" x2="233.4" y2="175" stroke="white" stroke-opacity="0.3" stroke-width="2" clip-path="url(#logo-clip)"/>
+
+  <!-- Circle outline -->
+  <circle cx="210" cy="105" r="70" fill="none" stroke="#cccccc" stroke-width="1"/>
+
+  <!-- P mark -->
+  <text x="210" y="105" text-anchor="middle" dominant-baseline="central"
+        font-size="90" font-weight="700" fill="white"
+        font-family="system-ui, -apple-system, sans-serif">P</text>
+
+  <!-- Separator -->
+  <line x1="296" y1="48" x2="296" y2="162" stroke="#e5e5e5" stroke-width="0.5"/>
+
+  <!-- POLIT wordmark -->
+  <text x="313" y="116" font-size="50" font-weight="500" fill="#1a1a1a"
+        font-family="system-ui, -apple-system, sans-serif"
+        letter-spacing="8">POLIT</text>
+
+  <!-- Korean name -->
+  <text x="315" y="146" font-size="21" font-weight="400" fill="#666666"
+        font-family="system-ui, -apple-system, sans-serif"
+        letter-spacing="3">폴릿</text>
+
+  <!-- Tagline -->
+  <text x="315" y="170" font-size="13" fill="#999999"
+        font-family="system-ui, -apple-system, sans-serif">정치 성향 커뮤니티 &amp; 토론 플랫폼</text>
+</svg>

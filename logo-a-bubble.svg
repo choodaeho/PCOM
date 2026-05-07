@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="140" viewBox="0 0 480 140">
+  <title>폴릿 로고 A형 — 말풍선</title>
+  <defs>
+    <clipPath id="ca">
+      <rect x="10" y="8" width="120" height="88" rx="13"/>
+    </clipPath>
+  </defs>
+
+  <!-- 말풍선 삼색 밴드 -->
+  <rect x="10" y="8" width="40" height="88" fill="#E24B4A" clip-path="url(#ca)"/>
+  <rect x="50" y="8" width="40" height="88" fill="#7F77DD" clip-path="url(#ca)"/>
+  <rect x="90" y="8" width="40" height="88" fill="#378ADD" clip-path="url(#ca)"/>
+  <line x1="50" y1="8" x2="50" y2="96" stroke="white" stroke-opacity="0.25" stroke-width="2" clip-path="url(#ca)"/>
+  <line x1="90" y1="8" x2="90" y2="96" stroke="white" stroke-opacity="0.25" stroke-width="2" clip-path="url(#ca)"/>
+  <rect x="10" y="8" width="120" height="88" rx="13" fill="none" stroke="#e5e5e5" stroke-width="1.5"/>
+
+  <!-- P 마크 -->
+  <text x="70" y="52" text-anchor="middle" dominant-baseline="central"
+        font-size="52" font-weight="700" fill="white"
+        font-family="system-ui, -apple-system, sans-serif">P</text>
+
+  <!-- 말풍선 꼬리 -->
+  <path d="M60,96 L70,114 L80,96 Z" fill="#7F77DD"/>
+
+  <!-- 구분선 -->
+  <line x1="152" y1="22" x2="152" y2="118" stroke="#e5e5e5" stroke-width="0.5"/>
+
+  <!-- POLIT 워드마크 -->
+  <text x="168" y="68" font-size="52" font-weight="500" fill="#1a1a1a"
+        font-family="system-ui, -apple-system, sans-serif" letter-spacing="8">POLIT</text>
+
+  <!-- 한글 -->
+  <text x="170" y="100" font-size="22" font-weight="400" fill="#666666"
+        font-family="system-ui, -apple-system, sans-serif" letter-spacing="3">폴릿</text>
+</svg>

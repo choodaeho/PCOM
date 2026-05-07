@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="140" viewBox="0 0 480 140">
+  <title>폴릿 로고 C형 — 삼봉</title>
+
+  <!-- 삼봉 마크 -->
+  <polygon points="5,108 28,35 51,108" fill="#E24B4A"/>
+  <polygon points="89,108 112,35 135,108" fill="#378ADD"/>
+  <polygon points="46,108 70,10 94,108" fill="#7F77DD"/>
+  <line x1="5" y1="108" x2="135" y2="108" stroke="#cccccc" stroke-width="0.5"/>
+
+  <!-- 구분선 -->
+  <line x1="155" y1="30" x2="155" y2="118" stroke="#e5e5e5" stroke-width="0.5"/>
+
+  <!-- POLIT 워드마크 -->
+  <text x="172" y="75" font-size="52" font-weight="500" fill="#1a1a1a"
+        font-family="system-ui, -apple-system, sans-serif" letter-spacing="8">POLIT</text>
+
+  <!-- 한글 -->
+  <text x="174" y="106" font-size="22" font-weight="400" fill="#666666"
+        font-family="system-ui, -apple-system, sans-serif" letter-spacing="3">폴릿</text>
+</svg>

@@ -91,53 +91,62 @@ Route::middleware(['auth', 'verified', 'user.active'])->group(function () {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 커뮤니티 공통
+// 커뮤니티 공개 열람 (비로그인 허용)
+// — 게시판 목록 / 게시판 글 목록 / 글 상세
+// ═══════════════════════════════════════════════════════════════════════════════
+
+Route::get('/boards', [BoardController::class, 'index'])->name('boards.index');
+
+Route::prefix('/boards/{board:slug}')->group(function () {
+    Route::get('/', [BoardController::class, 'show'])->name('boards.show');
+    Route::get('/posts/{post}', [PostController::class, 'show'])->name('posts.show');
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 커뮤니티 쓰기/상호작용
 // 조건: 로그인 + 이메일 인증 + 계정 활성 + 성향 테스트 완료
 // ═══════════════════════════════════════════════════════════════════════════════
 
 Route::middleware(['auth', 'verified', 'user.active', 'political.test'])->group(function () {
 
     // ─────────────────────────────────────────────
-    // 게시판 목록
-    // ─────────────────────────────────────────────
-    Route::get('/boards', [BoardController::class, 'index'])->name('boards.index');
-
-    // ─────────────────────────────────────────────
-    // 아지트 (진영 전용) — faction.access 미들웨어 추가
+    // 게시글 CRUD (faction.access 미들웨어)
+    //   아지트 → 본인 진영 유저만 작성/수정/삭제 가능
+    //   전쟁터 → 전 진영 유저 작성 가능
     // ─────────────────────────────────────────────
     Route::middleware('faction.access')->prefix('/boards/{board:slug}')->group(function () {
-        Route::get('/', [BoardController::class, 'show'])->name('boards.show');
-
-        // 게시글 CRUD
         Route::get('/posts/create', [PostController::class, 'create'])->name('posts.create');
         Route::post('/posts', [PostController::class, 'store'])->name('posts.store');
-        Route::get('/posts/{post}', [PostController::class, 'show'])->name('posts.show');
         Route::get('/posts/{post}/edit', [PostController::class, 'edit'])->name('posts.edit');
         Route::put('/posts/{post}', [PostController::class, 'update'])->name('posts.update');
         Route::delete('/posts/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
-
-        // 댓글
-        Route::post('/posts/{post}/comments', [CommentController::class, 'store'])
-            ->name('comments.store');
     });
 
     // ─────────────────────────────────────────────
-    // 댓글 수정/삭제 (board 컨텍스트 없이 직접 접근)
+    // 댓글 (board 없이 post_id로 식별)
     // ─────────────────────────────────────────────
-    Route::put('/comments/{comment}', [CommentController::class, 'update'])->name('comments.update');
-    Route::delete('/comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
+    Route::post('/posts/{post}/comments', [CommentController::class, 'store'])
+        ->name('comments.store');
+    Route::put('/comments/{comment}', [CommentController::class, 'update'])
+        ->name('comments.update');
+    Route::delete('/comments/{comment}', [CommentController::class, 'destroy'])
+        ->name('comments.destroy');
 
     // ─────────────────────────────────────────────
     // 추천/비추천 (POST → 토글 방식)
     // ─────────────────────────────────────────────
-    Route::post('/posts/{post}/vote', [VoteController::class, 'votePost'])->name('votes.post');
-    Route::post('/comments/{comment}/vote', [VoteController::class, 'voteComment'])->name('votes.comment');
+    Route::post('/posts/{post}/vote', [VoteController::class, 'votePost'])
+        ->name('votes.post');
+    Route::post('/comments/{comment}/vote', [VoteController::class, 'voteComment'])
+        ->name('votes.comment');
 
     // ─────────────────────────────────────────────
     // 신고
     // ─────────────────────────────────────────────
-    Route::post('/posts/{post}/report', [ReportController::class, 'reportPost'])->name('reports.post');
-    Route::post('/comments/{comment}/report', [ReportController::class, 'reportComment'])->name('reports.comment');
+    Route::post('/posts/{post}/report', [ReportController::class, 'reportPost'])
+        ->name('reports.post');
+    Route::post('/comments/{comment}/report', [ReportController::class, 'reportComment'])
+        ->name('reports.comment');
 
     // ─────────────────────────────────────────────
     // 실시간 투표 (The Poll)
@@ -186,7 +195,7 @@ Route::middleware(['auth', 'verified', 'user.active', 'admin'])
             Route::post('/{user}/activate', [AdminUser::class, 'activate'])->name('activate');
         });
 
-        // 게시판 관리 (생성형 게시판)
+        // 게시판 관리
         Route::prefix('/boards')->name('boards.')->group(function () {
             Route::get('/', [AdminBoard::class, 'index'])->name('index');
             Route::get('/create', [AdminBoard::class, 'create'])->name('create');

@@ -5,6 +5,11 @@
         "dev": "vite",
         "build": "vite build"
     },
+    "dependencies": {
+        "@laravel/echo": "^1.16",
+        "@vue/server-renderer": "^3.4",
+        "pusher-js": "^8.4"
+    },
     "devDependencies": {
         "@inertiajs/vue3": "^1.0",
         "@tailwindcss/vite": "^4.0",

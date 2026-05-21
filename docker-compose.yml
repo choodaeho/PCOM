@@ -18,6 +18,9 @@ services:
       LARAVEL_SAIL: 1
       XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
       XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
+    ports:
+      # Vite 개발 서버 (HMR 포함) — 로컬에서 npm run dev 실행 시 필요
+      - '${VITE_PORT:-5173}:5173'
     volumes:
       - .:/var/www/html
       - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
@@ -124,6 +127,28 @@ services:
     depends_on:
       - app
       - redis
+
+  # ─────────────────────────────────────────────
+  # Inertia SSR Server (Node.js)
+  # php artisan inertia:start-ssr 를 실행하는 컨테이너
+  # PHP가 이 서버에 렌더링을 요청하여 SEO 친화적 HTML을 생성합니다
+  # ─────────────────────────────────────────────
+  ssr:
+    image: polit-app
+    container_name: polit_ssr
+    restart: unless-stopped
+    command: php artisan inertia:start-ssr
+    environment:
+      WWWUSER: '${WWWUSER:-1000}'
+      LARAVEL_SAIL: 1
+    ports:
+      - '${SSR_PORT:-13714}:13714'
+    volumes:
+      - .:/var/www/html
+    networks:
+      - polit_network
+    depends_on:
+      - app
 
   # ─────────────────────────────────────────────
   # Laravel Queue Worker

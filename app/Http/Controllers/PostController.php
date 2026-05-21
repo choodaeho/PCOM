@@ -40,9 +40,18 @@ class PostController extends Controller
             ->with('success', '게시글이 작성되었습니다.');
     }
 
+    /**
+     * 게시글 상세 (비로그인 가능).
+     *
+     * - 비로그인: myVote = null, 추천 버튼 클릭 시 Vue에서 로그인 페이지로 리디렉트
+     * - 조회수: 비로그인 or 타인이 볼 때만 증가
+     */
     public function show(Request $request, Board $board, Post $post): Response
     {
-        if ($post->user_id !== $request->user()->id) {
+        $user = $request->user();
+
+        // 본인이 아닌 경우(비로그인 포함) 조회수 증가
+        if ($user === null || $post->user_id !== $user->id) {
             $post->incrementViewCount();
         }
 
@@ -52,13 +61,17 @@ class PostController extends Controller
             'comments.replies.user:id,nickname,political_type',
         ]);
 
-        $myVote = $request->user()->votes()
+        // 비로그인이면 myVote = null
+        $myVote = $user?->votes()
             ->where('votable_type', Post::class)
             ->where('votable_id', $post->id)
             ->value('vote_type');
 
         return Inertia::render('Posts/Show', [
-            'board'  => $board->only(['id', 'name', 'slug', 'board_type']),
+            'board'  => array_merge(
+                $board->only(['id', 'name', 'slug']),
+                ['board_type' => $board->board_type->value]
+            ),
             'post'   => $post,
             'myVote' => $myVote,
         ]);
@@ -91,7 +104,7 @@ class PostController extends Controller
 
     public function destroy(Request $request, Board $board, Post $post): mixed
     {
-        abort_if($post->user_id !== $request->user()->id && !$request->user()->is_admin, 403);
+        abort_if($post->user_id !== $request->user()->id && ! $request->user()->is_admin, 403);
 
         $post->delete();
 

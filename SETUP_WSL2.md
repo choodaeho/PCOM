@@ -147,7 +147,9 @@ make install
 4. `docker compose up -d` — 컨테이너 전체 기동
 5. 10초 대기 (PostgreSQL 초기화 완료 대기)
 6. `php artisan migrate:fresh --seed` — DB 스키마 생성 + 시드 데이터 투입
-7. `php artisan l5-swagger:generate` — Swagger 문서 생성
+7. **`npm install`** — Node.js 패키지 설치 *(신규)*
+8. **`npm run build`** — 프론트엔드 정적 빌드 *(신규)*
+9. `php artisan l5-swagger:generate` — Swagger 문서 생성
 
 ### 설치 완료 후 접속 주소
 
@@ -157,7 +159,114 @@ make install
 | API | http://localhost/api/v1/ |
 | Swagger UI | http://localhost/api/documentation |
 | Mailpit (메일 확인) | http://localhost:8025 |
+| Vite 개발 서버 | http://localhost:5173 *(dev 모드 시)* |
 | Redis Commander (--profile debug) | http://localhost:8081 |
+
+---
+
+## 6-1. 프론트엔드 개발 서버 (Vite + HMR)
+
+폴릿은 **Inertia.js + Vue 3 + Vite**로 구성되어 있습니다.  
+운영/배포 시에는 `npm run build`로 정적 파일을 생성하고, **개발 중에는 Vite 개발 서버를 별도로 실행**해야 핫 리로드(HMR)가 동작합니다.
+
+### 6-1-1. Vite 개발 서버 시작
+
+```bash
+# 방법 1 (권장): Docker 컨테이너 내부에서 실행
+make npm-dev
+# 또는
+docker compose exec app npm run dev
+```
+
+```bash
+# 방법 2: WSL2 호스트에서 직접 실행 (Node.js 20이 WSL2에 설치된 경우)
+cd ~/projects/pcom
+npm install   # 최초 1회
+npm run dev
+```
+
+> **어느 방법이 더 좋나요?**  
+> - **방법 1 (Docker 내부)** — Node 버전 통일, 환경 일관성 보장. 권장.  
+> - **방법 2 (WSL2 호스트)** — 파일 감지 속도가 약간 빠를 수 있음. Node 20 별도 설치 필요.
+
+### 6-1-2. HMR(Hot Module Replacement) 설정
+
+WSL2 + Docker 조합에서는 브라우저 ↔ Vite HMR 연결 시 `localhost`를 명시해야 합니다.  
+`.env`에 아래 항목이 설정되어 있는지 확인하세요:
+
+```dotenv
+VITE_PORT=5173
+VITE_HMR_HOST=localhost   # WSL2 환경에서는 localhost로 고정
+```
+
+`vite.config.js`는 이 값을 자동으로 읽어 HMR 소켓을 설정합니다.
+
+### 6-1-3. docker-compose.yml 포트 확인
+
+Vite 개발 서버 포트는 `app` 컨테이너에서 호스트로 노출되어 있습니다:
+
+```yaml
+app:
+  ports:
+    - '${VITE_PORT:-5173}:5173'   # Vite HMR 포트
+```
+
+### 6-1-4. 개발 서버 실행 후 확인
+
+| 상태 | 확인 방법 |
+|---|---|
+| Vite 서버 동작 | `http://localhost:5173` 접속 시 Vite 응답 |
+| HMR 동작 | Vue 파일 수정 시 브라우저 자동 리로드 |
+| 앱 정상 렌더링 | `http://localhost` 접속 (Nginx → PHP → Inertia) |
+
+> 개발 중에는 **두 서버를 동시에** 실행합니다:
+> - `make up` — Nginx + PHP + DB (백그라운드)
+> - `make npm-dev` — Vite 개발 서버 (포그라운드, 별도 터미널)
+
+### 6-1-5. 프로덕션 빌드
+
+```bash
+# 정적 파일 생성 → public/build/ 에 저장됨
+make npm-build
+# 또는
+docker compose exec app npm run build
+```
+
+빌드된 파일은 `public/build/`에 저장되며, `app.blade.php`의 `@vite` 디렉티브가 자동으로 참조합니다.
+
+---
+
+## 6-2. WebSocket(Reverb) 연결 확인
+
+실시간 점수 띠(ScoreTicker), 알림 등은 **Laravel Reverb**를 통해 동작합니다.
+
+```bash
+# Reverb 컨테이너 로그 확인
+docker compose logs -f reverb
+```
+
+정상 동작 시 아래 메시지가 출력됩니다:
+```
+Starting reverb server on 0.0.0.0:8080
+```
+
+`.env`에서 프론트엔드 클라이언트 연결 설정 확인:
+
+```dotenv
+REVERB_APP_KEY=polit-reverb-key
+REVERB_APP_SECRET=polit-reverb-secret
+REVERB_APP_ID=polit-001
+REVERB_HOST=localhost
+REVERB_PORT=8080
+REVERB_SCHEME=http
+
+VITE_REVERB_APP_KEY="${REVERB_APP_KEY}"
+VITE_REVERB_HOST="${APP_URL}"   # APP_URL과 동일
+VITE_REVERB_PORT="${REVERB_PORT}"
+VITE_REVERB_SCHEME="${REVERB_SCHEME}"
+```
+
+> `resources/js/echo.js`가 위 VITE_REVERB_* 변수를 읽어 Echo 클라이언트를 초기화합니다.
 
 ---
 
@@ -174,14 +283,14 @@ make logs-app      # PHP 앱 로그만
 make logs-nginx    # Nginx 로그만
 
 # Artisan 명령
-make artisan cmd="route:list"
-make artisan cmd="queue:work"
+make artisan CMD="route:list"
+make artisan CMD="queue:work"
 
 # DB 초기화
 make fresh         # migrate:fresh --seed
 
 # 진영 점수 수동 집계
-make artisan cmd="polit:aggregate-daily"
+make artisan CMD="polit:aggregate-daily"
 
 # Swagger 재생성
 make swagger
@@ -194,6 +303,29 @@ make phpstan
 make test
 make test-coverage
 ```
+
+### 프론트엔드 명령어
+
+```bash
+# NPM 패키지 설치 (처음 1회 또는 package.json 변경 후)
+make npm-install
+
+# Vite 개발 서버 시작 (HMR 포함, 별도 터미널에서 실행)
+make npm-dev
+
+# 프로덕션 빌드 (배포 전)
+make npm-build
+```
+
+> **개발 중 권장 워크플로우:**
+> ```bash
+> # 터미널 1 — 백엔드 컨테이너
+> make up
+>
+> # 터미널 2 — 프론트엔드 개발 서버
+> make npm-dev
+> ```
+> 이후 `http://localhost` 으로 접속하면 Vue HMR이 자동으로 동작합니다.
 
 ---
 
@@ -228,6 +360,39 @@ sudo mv composer.phar /usr/local/bin/composer
 ### Q: make 명령어가 없음
 ```bash
 sudo apt install make -y
+```
+
+### Q: 화면이 흰 페이지 / 빈 화면으로 보임 (Vite 빌드 없음)
+```bash
+# 프론트엔드 빌드가 한 번도 실행된 적 없거나, public/build/가 없는 경우
+make npm-build
+
+# 개발 중이라면 Vite 개발 서버를 함께 실행해야 합니다
+make npm-dev   # 별도 터미널
+```
+
+### Q: HMR이 동작하지 않음 (파일 수정해도 브라우저 갱신 안 됨)
+```bash
+# .env에서 HMR 호스트 확인
+VITE_HMR_HOST=localhost
+
+# vite.config.js server.hmr.host 값이 VITE_HMR_HOST를 읽는지 확인
+# 브라우저 개발자 도구 → Network 탭 → WS 연결 (localhost:5173) 상태 확인
+```
+
+### Q: `npm run dev` 실행 시 ENOSPC 오류 (inotify 한계 초과)
+```bash
+# WSL2 호스트에서 실행 시 파일 감시 한계 증설
+echo "fs.inotify.max_user_watches=524288" | sudo tee -a /etc/sysctl.conf
+sudo sysctl -p
+```
+
+### Q: `VITE_REVERB_APP_KEY is not defined` 오류
+```bash
+# .env에 VITE_REVERB_* 변수가 없거나 Vite 캐시 문제
+# .env 파일 확인 후 Vite 재시작
+make down && make up
+make npm-dev
 ```
 
 ---

@@ -141,12 +141,28 @@ npm-install: ## NPM 패키지 설치
 	$(DC) exec app npm install
 
 .PHONY: npm-dev
-npm-dev: ## Vite 개발 서버 시작
+npm-dev: ## Vite 개발 서버 시작 (HMR 포함)
 	$(DC) exec app npm run dev
 
 .PHONY: npm-build
-npm-build: ## 프론트엔드 빌드
+npm-build: ## 프론트엔드 빌드 (CSR + SSR 동시)
 	$(DC) exec app npm run build
+
+.PHONY: ssr-start
+ssr-start: ## Inertia SSR 서버 컨테이너 시작
+	$(DC) up -d ssr
+
+.PHONY: ssr-stop
+ssr-stop: ## Inertia SSR 서버 컨테이너 중지
+	$(DC) stop ssr
+
+.PHONY: ssr-logs
+ssr-logs: ## SSR 서버 로그 스트리밍
+	$(DC) logs -f ssr
+
+.PHONY: ssr-restart
+ssr-restart: ## SSR 서버 재시작 (빌드 후 코드 반영 시)
+	$(DC) restart ssr
 
 # ─────────────────────────────────────────────
 # 초기 설치
@@ -166,13 +182,19 @@ install: ## 프로젝트 최초 설치 (clone 후 1회 실행)
 	sleep 10
 	@echo "🗄️  마이그레이션 + 시드..."
 	$(DC) exec app php artisan migrate --seed
+	@echo "🎨 NPM 패키지 설치..."
+	$(DC) exec app npm install
+	@echo "🏗️  프론트엔드 빌드..."
+	$(DC) exec app npm run build
 	@echo "📝 Swagger 문서 생성..."
 	$(DC) exec app php artisan l5-swagger:generate
 	@echo ""
 	@echo "✅ 설치 완료!"
-	@echo "   🌐 앱:      http://localhost"
-	@echo "   📧 메일:    http://localhost:8025"
-	@echo "   📖 API 문서: http://localhost/api/documentation"
+	@echo "   🌐 앱:        http://localhost"
+	@echo "   📧 메일:      http://localhost:8025"
+	@echo "   📖 API 문서:  http://localhost/api/documentation"
+	@echo ""
+	@echo "💡 개발 서버 시작: make npm-dev"
 
 # ─────────────────────────────────────────────
 # 셸 접속

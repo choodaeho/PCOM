@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+:root {
+  --color-conservative: #E24B4A;
+  --color-moderate:     #7F77DD;
+  --color-progressive:  #378ADD;
+  --color-dark:         #0f172a;
+  --color-dark2:        #1e293b;
+}
+
+body { @apply bg-slate-950 text-slate-100 antialiased; }

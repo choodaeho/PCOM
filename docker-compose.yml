@@ -1,0 +1,215 @@
+name: polit
+
+services:
+  # ─────────────────────────────────────────────
+  # Laravel Application (PHP 8.2 + Sail)
+  # ─────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      args:
+        WWWGROUP: '${WWWGROUP:-1000}'
+    image: polit-app
+    container_name: polit_app
+    restart: unless-stopped
+    environment:
+      WWWUSER: '${WWWUSER:-1000}'
+      LARAVEL_SAIL: 1
+      XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
+      XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
+    volumes:
+      - .:/var/www/html
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - polit_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "php", "-r", "echo 'ok';"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ─────────────────────────────────────────────
+  # Nginx Web Server
+  # ─────────────────────────────────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: polit_nginx
+    restart: unless-stopped
+    ports:
+      - '${APP_PORT:-80}:80'
+      - '${APP_SSL_PORT:-443}:443'
+    volumes:
+      - .:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - polit_network
+    depends_on:
+      - app
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─────────────────────────────────────────────
+  # PostgreSQL 16
+  # ─────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: polit_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: '${DB_DATABASE:-polit}'
+      POSTGRES_USER: '${DB_USERNAME:-polit}'
+      POSTGRES_PASSWORD: '${DB_PASSWORD:-secret}'
+      PGPASSWORD: '${DB_PASSWORD:-secret}'
+    ports:
+      # FORWARD_DB_PORT: 호스트에 노출되는 포트 (로컬 PostgreSQL 5432와 충돌 시 5433으로 변경)
+      # DB_PORT는 컨테이너 내부 연결용(5432)으로 그대로 사용
+      - '${FORWARD_DB_PORT:-5433}:5432'
+    volumes:
+      - polit_postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - polit_network
+    healthcheck:
+      test: ["CMD", "pg_isready", "-q", "-d", "${DB_DATABASE:-polit}", "-U", "${DB_USERNAME:-polit}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────
+  # Redis 7
+  # ─────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: polit_redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-secret} --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - polit_redis_data:/data
+    networks:
+      - polit_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-secret}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────
+  # Laravel Reverb (WebSocket Server)
+  # ─────────────────────────────────────────────
+  reverb:
+    image: polit-app
+    container_name: polit_reverb
+    restart: unless-stopped
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    environment:
+      WWWUSER: '${WWWUSER:-1000}'
+      LARAVEL_SAIL: 1
+    ports:
+      - '${REVERB_PORT:-8080}:8080'
+    volumes:
+      - .:/var/www/html
+    networks:
+      - polit_network
+    depends_on:
+      - app
+      - redis
+
+  # ─────────────────────────────────────────────
+  # Laravel Queue Worker
+  # ─────────────────────────────────────────────
+  queue:
+    image: polit-app
+    container_name: polit_queue
+    restart: unless-stopped
+    command: php artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
+    environment:
+      WWWUSER: '${WWWUSER:-1000}'
+      LARAVEL_SAIL: 1
+    volumes:
+      - .:/var/www/html
+    networks:
+      - polit_network
+    depends_on:
+      - app
+      - redis
+
+  # ─────────────────────────────────────────────
+  # Laravel Scheduler
+  # ─────────────────────────────────────────────
+  scheduler:
+    image: polit-app
+    container_name: polit_scheduler
+    restart: unless-stopped
+    command: >
+      sh -c "while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done"
+    environment:
+      WWWUSER: '${WWWUSER:-1000}'
+      LARAVEL_SAIL: 1
+    volumes:
+      - .:/var/www/html
+    networks:
+      - polit_network
+    depends_on:
+      - app
+      - postgres
+      - redis
+
+  # ─────────────────────────────────────────────
+  # Mailpit (로컬 이메일 테스트)
+  # http://localhost:8025 에서 수신 메일 확인
+  # ─────────────────────────────────────────────
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: polit_mailpit
+    restart: unless-stopped
+    ports:
+      - '${MAIL_PORT:-1025}:1025'    # SMTP
+      - '${MAILPIT_UI_PORT:-8025}:8025'  # Web UI
+    networks:
+      - polit_network
+
+  # ─────────────────────────────────────────────
+  # Redis Commander (로컬 Redis GUI, dev only)
+  # http://localhost:8081
+  # ─────────────────────────────────────────────
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: polit_redis_commander
+    restart: unless-stopped
+    profiles:
+      - debug  # docker compose --profile debug up 으로만 실행
+    environment:
+      REDIS_HOSTS: 'local:redis:6379:0:${REDIS_PASSWORD:-secret}'
+    ports:
+      - '8081:8081'
+    networks:
+      - polit_network
+    depends_on:
+      - redis
+
+# ─────────────────────────────────────────────
+# Networks
+# ─────────────────────────────────────────────
+networks:
+  polit_network:
+    driver: bridge
+
+# ─────────────────────────────────────────────
+# Volumes
+# ─────────────────────────────────────────────
+volumes:
+  polit_postgres_data:
+    driver: local
+  polit_redis_data:
+    driver: local

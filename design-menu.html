@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>폴릿(POLIT) — 단계별 메뉴 구성안</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#378ADD; --purple:#7F77DD; --red:#E24B4A;
+  --dark:#0f172a; --dark2:#1e293b; --dark3:#334155;
+  --text:#1a1a2e; --sub:#64748b; --border:#e2e8f0;
+  --bg:#f1f5f9; --white:#fff;
+}
+body{font-family:'Noto Sans KR',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+
+/* ── DOC HEADER ──────────────────────────────── */
+.doc-header{background:var(--dark);padding:40px 0;text-align:center}
+.doc-header h1{font-size:28px;font-weight:700;color:white;letter-spacing:-0.5px}
+.doc-header p{font-size:14px;color:#64748b;margin-top:8px}
+.phase-chips{display:flex;gap:8px;justify-content:center;margin-top:16px}
+.phase-chip{padding:4px 14px;border-radius:100px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
+.chip-1{background:rgba(55,138,221,0.15);color:var(--blue);border:1px solid rgba(55,138,221,0.3)}
+.chip-2{background:rgba(127,119,221,0.15);color:var(--purple);border:1px solid rgba(127,119,221,0.3)}
+.chip-3{background:rgba(226,75,74,0.15);color:var(--red);border:1px solid rgba(226,75,74,0.3)}
+
+/* ── SECTION LAYOUT ──────────────────────────── */
+.section{padding:48px 40px;max-width:1100px;margin:0 auto}
+.section-title{font-size:20px;font-weight:700;color:var(--text);margin-bottom:6px;display:flex;align-items:center;gap:10px}
+.section-badge{padding:3px 10px;border-radius:100px;font-size:11px;font-weight:600}
+.section-desc{font-size:13px;color:var(--sub);margin-bottom:28px;line-height:1.7}
+.divider-line{height:1px;background:var(--border);margin:48px 0}
+
+/* ── PHASE TABLE ─────────────────────────────── */
+.phase-table{width:100%;border-collapse:collapse;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.phase-table th{padding:14px 18px;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;text-align:left}
+.phase-table td{padding:13px 18px;font-size:13px;border-top:1px solid var(--border);background:white;vertical-align:top;line-height:1.7}
+.phase-table tr:first-child td{border-top:none}
+.th-label{background:#f8fafc;color:var(--sub);width:160px}
+.th-p1{background:rgba(55,138,221,0.08);color:var(--blue)}
+.th-p2{background:rgba(127,119,221,0.08);color:var(--purple)}
+.th-p3{background:rgba(226,75,74,0.08);color:var(--red)}
+.badge-new{display:inline-block;background:rgba(34,197,94,0.12);color:#16a34a;border:1px solid rgba(34,197,94,0.3);font-size:10px;font-weight:700;padding:1px 6px;border-radius:100px;margin-left:4px}
+.badge-lock{font-size:11px;color:#94a3b8}
+.item-ok{color:#16a34a}
+.item-no{color:#94a3b8}
+
+/* ── GNB SIMULATOR ───────────────────────────── */
+.gnb-group{margin-bottom:40px}
+.gnb-label{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--sub);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.gnb-label::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* GNB 공통 */
+.gnb{background:var(--dark2);border-radius:12px;overflow:visible;box-shadow:0 4px 20px rgba(0,0,0,0.2);position:relative;margin-bottom:6px}
+.gnb-inner{padding:0 20px;height:58px;display:flex;align-items:center;gap:28px}
+.gnb-logo svg{height:40px;width:auto;display:block}
+.gnb-nav{display:flex;gap:2px;margin-left:8px}
+.gnb-link{padding:5px 12px;border-radius:7px;font-size:13px;font-weight:500;color:#94a3b8;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;transition:all .15s;user-select:none}
+.gnb-link:hover{background:rgba(255,255,255,0.08);color:white}
+.gnb-link.active{background:rgba(255,255,255,0.1);color:white}
+.gnb-link.battle-link{background:rgba(226,75,74,0.15);color:var(--red);border:1px solid rgba(226,75,74,0.25)}
+.gnb-link.azit-link{background:rgba(226,75,74,0.1);color:var(--red);border:1px solid rgba(226,75,74,0.2);font-weight:600}
+.caret{font-size:10px;opacity:0.7}
+.gnb-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.gnb-btn-ghost{padding:6px 14px;border-radius:7px;font-size:12px;font-weight:500;color:#94a3b8;background:transparent;border:1px solid #334155;cursor:pointer;transition:all .2s}
+.gnb-btn-ghost:hover{border-color:#64748b;color:white}
+.gnb-btn-primary{padding:6px 16px;border-radius:7px;font-size:12px;font-weight:600;color:white;background:linear-gradient(135deg,var(--purple),var(--blue));border:none;cursor:pointer}
+.gnb-faction-badge{padding:3px 9px;border-radius:100px;font-size:11px;font-weight:700;background:rgba(226,75,74,0.15);color:var(--red);border:1px solid rgba(226,75,74,0.3)}
+.gnb-faction-badge.blue{background:rgba(55,138,221,0.15);color:var(--blue);border-color:rgba(55,138,221,0.3)}
+.gnb-faction-badge.purple{background:rgba(127,119,221,0.15);color:var(--purple);border-color:rgba(127,119,221,0.3)}
+.gnb-avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--blue));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;cursor:pointer}
+.gnb-bell{font-size:18px;cursor:pointer;position:relative}
+.notif-dot{position:absolute;top:-2px;right:-2px;width:8px;height:8px;background:var(--red);border-radius:50%;border:1.5px solid var(--dark2)}
+.gnb-admin-link{padding:5px 12px;border-radius:7px;font-size:13px;font-weight:600;color:#fbbf24;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.25);display:flex;align-items:center;gap:4px}
+
+/* 점수 티커 (gnb 위) */
+.score-bar{background:var(--dark);border-radius:8px 8px 0 0;padding:6px 20px;display:flex;align-items:center;gap:20px}
+.live-dot{width:6px;height:6px;background:#22c55e;border-radius:50%;animation:pulse 1.5s infinite;display:inline-block}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}
+.score-ticker-wrap{display:flex;gap:6px;align-items:center;font-size:11px}
+.st-name{color:#94a3b8}
+.st-val{font-weight:700;color:white}
+.st-up{color:#22c55e;font-size:10px}
+.st-dn{color:#f87171;font-size:10px}
+.st-eq{color:#94a3b8;font-size:10px}
+.st-sep{color:#334155;margin:0 4px}
+
+/* ── DROPDOWN ────────────────────────────────── */
+.dropdown-area{display:flex;gap:20px;flex-wrap:wrap;margin-top:12px}
+.dropdown-box{background:var(--dark2);border:1px solid #334155;border-radius:12px;padding:8px;width:200px;box-shadow:0 8px 32px rgba(0,0,0,0.3)}
+.dropdown-box.wide{width:240px}
+.dd-header{padding:8px 12px 6px;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#475569}
+.dd-item{display:flex;align-items:center;padding:8px 12px;border-radius:7px;font-size:13px;color:#94a3b8;cursor:pointer;gap:8px;transition:all .15s}
+.dd-item:hover{background:rgba(255,255,255,0.07);color:white}
+.dd-item.active{background:rgba(127,119,221,0.15);color:var(--purple)}
+.dd-item .dd-icon{font-size:14px;width:20px;text-align:center;flex-shrink:0}
+.dd-item .dd-count{margin-left:auto;font-size:11px;background:#1e293b;padding:1px 7px;border-radius:100px}
+.dd-item .dd-count.hot{background:rgba(226,75,74,0.15);color:var(--red)}
+.dd-divider{height:1px;background:#1e293b;margin:4px 8px}
+.dd-item.danger{color:var(--red)}
+.dd-user-header{padding:10px 12px;border-bottom:1px solid #1e293b;margin-bottom:4px}
+.dd-username{font-size:13px;font-weight:600;color:white}
+.dd-userbadge{font-size:11px;margin-top:3px}
+.dd-manner{font-size:11px;color:#94a3b8;margin-top:2px}
+
+/* faction colors in dropdown */
+.red{color:var(--red)}
+.blue{color:var(--blue)}
+.purple-c{color:var(--purple)}
+
+/* ── PHASE FULL GNB MOCKUP ───────────────────── */
+.mockup-frame{border:1px solid var(--border);border-radius:16px;overflow:hidden;background:#f8fafc;box-shadow:0 4px 24px rgba(0,0,0,0.07);margin-bottom:20px}
+.mockup-browser-bar{background:#e2e8f0;padding:10px 16px;display:flex;align-items:center;gap:10px}
+.browser-dots{display:flex;gap:5px}
+.browser-dot{width:10px;height:10px;border-radius:50%}
+.browser-url{flex:1;background:white;border-radius:6px;padding:4px 12px;font-size:11px;color:#94a3b8;margin:0 12px}
+.mockup-content{background:var(--dark);min-height:180px}
+.page-hero-stub{padding:40px 32px;text-align:center}
+.stub-title{font-size:22px;font-weight:700;color:white;margin-bottom:8px}
+.stub-desc{font-size:13px;color:#64748b}
+.stub-cta{display:inline-flex;gap:10px;margin-top:20px}
+.stub-btn{padding:9px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
+.stub-btn.primary{background:linear-gradient(135deg,var(--purple),var(--blue));color:white;border:none}
+.stub-btn.ghost{background:transparent;color:#94a3b8;border:1px solid #334155}
+
+.azit-stub{background:linear-gradient(135deg,#1e3a5f,#0f1e35);padding:32px;min-height:140px;display:flex;align-items:center;gap:24px}
+.azit-stub-card{background:rgba(55,138,221,0.1);border:1px solid rgba(55,138,221,0.2);border-radius:12px;padding:20px;flex:1;text-align:center}
+.azit-stub-card-title{font-size:16px;font-weight:700;color:white;margin-bottom:4px}
+.azit-stub-card-sub{font-size:12px;color:#64748b}
+
+/* ── ANNOTATION ──────────────────────────────── */
+.anno-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:20px}
+.anno-card{background:white;border:1px solid var(--border);border-radius:12px;padding:18px}
+.anno-phase{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px}
+.anno-phase.p1{color:var(--blue)}
+.anno-phase.p2{color:var(--purple)}
+.anno-phase.p3{color:var(--red)}
+.anno-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:10px}
+.anno-list{list-style:none;display:flex;flex-direction:column;gap:6px}
+.anno-list li{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--sub)}
+.anno-list li::before{content:'✓';color:#22c55e;font-weight:700;flex-shrink:0}
+.anno-list li.added::before{content:'＋';color:var(--purple);font-weight:700}
+.anno-list li.admin::before{content:'★';color:#fbbf24;font-weight:700}
+
+/* ── MOBILE MENU ─────────────────────────────── */
+.mobile-frame{width:375px;background:var(--dark);border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.3)}
+.mobile-gnb{background:var(--dark2);padding:0 16px;height:52px;display:flex;align-items:center;justify-content:space-between}
+.hamburger{display:flex;flex-direction:column;gap:4px;cursor:pointer}
+.hamburger span{width:20px;height:2px;background:#94a3b8;border-radius:2px}
+.mobile-logo svg{height:32px;width:auto;display:block}
+.mobile-drawer{background:var(--dark2);min-height:400px}
+.mobile-drawer-top{padding:20px 20px 16px;border-bottom:1px solid #1e293b}
+.mobile-user-row{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.mobile-score-row{background:rgba(255,255,255,0.04);border-radius:10px;padding:12px 14px;display:flex;justify-content:space-around}
+.mobile-score-item{text-align:center}
+.mobile-score-name{font-size:10px;color:#64748b}
+.mobile-score-val{font-size:15px;font-weight:700;margin-top:2px}
+.mobile-nav-section{padding:12px 0}
+.mobile-nav-label{padding:6px 20px 4px;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#475569}
+.mobile-nav-item{display:flex;align-items:center;padding:12px 20px;font-size:14px;color:#94a3b8;gap:12px;cursor:pointer;transition:all .15s}
+.mobile-nav-item:hover{background:rgba(255,255,255,0.04);color:white}
+.mobile-nav-item.active{color:var(--red)}
+.mobile-nav-icon{font-size:16px;width:24px;text-align:center}
+
+/* ── RESPONSIVE ──────────────────────────────── */
+@media(max-width:900px){.anno-grid{grid-template-columns:1fr}.section{padding:32px 20px}.dropdown-area{flex-direction:column}}
+</style>
+</head>
+<body>
+
+<!-- ─── 문서 헤더 ─────────────────────────────── -->
+<div class="doc-header">
+  <h1>폴릿(POLIT) — 단계별 메뉴 구성안</h1>
+  <p>Phase 1 → 2 → 3 단계별 GNB 구조 · 드롭다운 · 모바일 메뉴 설계</p>
+  <div class="phase-chips">
+    <span class="phase-chip chip-1">Phase 1 — 인프라·인증</span>
+    <span class="phase-chip chip-2">Phase 2 — 커뮤니티 핵심</span>
+    <span class="phase-chip chip-3">Phase 3 — 분석·실시간</span>
+  </div>
+</div>
+
+<!-- ─── SECTION 1: 메뉴 항목 비교표 ──────────── -->
+<div class="section">
+  <div class="section-title">
+    📋 단계별 메뉴 항목 비교
+    <span class="section-badge" style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0">구성안</span>
+  </div>
+  <p class="section-desc">각 Phase 완료 시 활성화되는 메뉴 항목 기준입니다. 로그인 상태에 따라 표시 여부가 다릅니다.</p>
+
+  <table class="phase-table">
+    <thead>
+      <tr>
+        <th class="th-label">메뉴 항목</th>
+        <th class="th-p1">Phase 1<br><small>인프라·인증</small></th>
+        <th class="th-p2">Phase 2<br><small>커뮤니티 핵심</small></th>
+        <th class="th-p3">Phase 3<br><small>분석·실시간</small></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>홈 (Home)</strong></td>
+        <td class="item-ok">✅ 기본 랜딩 페이지</td>
+        <td class="item-ok">✅ 활동 피드 추가</td>
+        <td class="item-ok">✅ 실시간 위젯 포함</td>
+      </tr>
+      <tr>
+        <td><strong>아지트 (Azit)</strong></td>
+        <td class="item-ok">✅ 단일 게시판<br><span class="badge-lock">🔒 로그인 후 · 진영 배정 후</span></td>
+        <td class="item-ok">✅ 드롭다운 게시판 목록 <span class="badge-new">NEW</span></td>
+        <td class="item-ok">✅ 랭킹·칭호 탭 추가 <span class="badge-new">NEW</span></td>
+      </tr>
+      <tr>
+        <td><strong>전쟁터 (Battleground)</strong></td>
+        <td class="item-ok">✅ 단일 게시판<br><span class="badge-lock">비로그인도 열람 가능</span></td>
+        <td class="item-ok">✅ 드롭다운 게시판 선택 <span class="badge-new">NEW</span></td>
+        <td class="item-ok">✅ 실시간 투표 탭 <span class="badge-new">NEW</span></td>
+      </tr>
+      <tr>
+        <td><strong>통계 (Stats)</strong></td>
+        <td class="item-no">— (미제공)</td>
+        <td class="item-ok">✅ 기본 일별 점수 <span class="badge-new">NEW</span></td>
+        <td class="item-ok">✅ 드롭다운 (일·월·연) <span class="badge-new">NEW</span></td>
+      </tr>
+      <tr>
+        <td><strong>실시간 투표 (Poll)</strong></td>
+        <td class="item-no">— (미제공)</td>
+        <td class="item-no">— (미제공)</td>
+        <td class="item-ok">✅ 독립 메뉴 <span class="badge-new">NEW</span></td>
+      </tr>
+      <tr>
+        <td><strong>알림 🔔</strong></td>
+        <td class="item-no">— (미제공)</td>
+        <td class="item-ok">✅ 뱃지 카운트 <span class="badge-new">NEW</span></td>
+        <td class="item-ok">✅ 실시간 알림</td>
+      </tr>
+      <tr>
+        <td><strong>실시간 점수 티커</strong></td>
+        <td class="item-no">— (미제공)</td>
+        <td class="item-ok">✅ GNB 상단 고정 <span class="badge-new">NEW</span></td>
+        <td class="item-ok">✅ 1분마다 WebSocket 갱신</td>
+      </tr>
+      <tr>
+        <td><strong>프로필 드롭다운</strong></td>
+        <td class="item-ok">✅ 기본 (설정·로그아웃)</td>
+        <td class="item-ok">✅ 내 게시물·댓글 추가</td>
+        <td class="item-ok">✅ 매너점수·칭호 추가</td>
+      </tr>
+      <tr>
+        <td><strong>관리자 메뉴</strong></td>
+        <td class="item-ok">✅ 기본 (사용자·테스트 관리)</td>
+        <td class="item-ok">✅ 게시판·신고 관리 추가</td>
+        <td class="item-ok">✅ 점수 대시보드·모니터 추가</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="divider-line" style="max-width:1100px;margin:0 auto"></div>
+
+<!-- ─── SECTION 2: GNB 상태별 렌더링 ────────── -->
+<div class="section">
+  <div class="section-title">🖥️ GNB 상태별 렌더링</div>
+  <p class="section-desc">실제 브라우저에서 렌더링되는 GNB 컴포넌트입니다. 로그인 상태·진영·Phase에 따라 표시 항목이 달라집니다.</p>
+
+  <!-- P1 비로그인 -->
+  <div class="gnb-group">
+    <div class="gnb-label"><span style="background:rgba(55,138,221,0.1);color:var(--blue);padding:2px 8px;border-radius:4px;font-size:10px">Phase 1</span> 비로그인 상태</div>
+    <div class="gnb">
+      <div class="gnb-inner">
+        <div class="gnb-logo">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 164 60">
+            <defs><clipPath id="g1"><rect x="0" y="2" width="50" height="44" rx="10"/></clipPath></defs>
+            <rect x="0" y="2" width="17" height="44" fill="#E24B4A" clip-path="url(#g1)"/>
+            <rect x="17" y="2" width="16" height="44" fill="#7F77DD" clip-path="url(#g1)"/>
+            <rect x="33" y="2" width="17" height="44" fill="#378ADD" clip-path="url(#g1)"/>
+            <line x1="17" y1="2" x2="17" y2="46" stroke="white" stroke-opacity="0.22" stroke-width="1" clip-path="url(#g1)"/>
+            <line x1="33" y1="2" x2="33" y2="46" stroke="white" stroke-opacity="0.22" stroke-width="1" clip-path="url(#g1)"/>
+            <rect x="0" y="2" width="50" height="44" rx="10" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+            <text x="25" y="24" text-anchor="middle" dominant-baseline="central" font-size="26" font-weight="700" fill="white" font-family="system-ui">P</text>
+            <path d="M19,46 L25,57 L31,46 Z" fill="#7F77DD"/>
+            <line x1="62" y1="8" x2="62" y2="55" stroke="rgba(255,255,255,0.15)" stroke-width="0.8"/>
+            <text x="71" y="27" font-size="21" font-weight="500" fill="white" font-family="system-ui" letter-spacing="3">POLIT</text>
+            <text x="72" y="47" font-size="11" font-weight="400" fill="#64748b" font-family="system-ui" letter-spacing="2">폴릿</text>
+          </svg>
+        </div>
+        <nav class="gnb-nav">
+          <div class="gnb-link active">🏠 홈</div>
+          <div class="gnb-link battle-link">⚔️ 전쟁터</div>
+        </nav>
+        <div class="gnb-right">
+          <button class="gnb-btn-ghost">로그인</button>
+          <button class="gnb-btn-primary">회원가입</button>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:#94a3b8;margin-top:6px">※ 아지트는 비로그인 시 메뉴에 노출되지 않습니다. 전쟁터는 열람만 가능.</p>
+  </div>
+
+  <!-- P1 로그인 -->
+  <div class="gnb-group">
+    <div class="gnb-label"><span style="background:rgba(55,138,221,0.1);color:var(--blue);padding:2px 8px;border-radius:4px;font-size:10px">Phase 1</span> 로그인 후 — 진보 회원</div>
+    <div class="gnb">
+      <div class="gnb-inner">
+        <div class="gnb-logo">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 164 60">
+            <defs><clipPath id="g2"><rect x="0" y="2" width="50" height="44" rx="10"/></clipPath></defs>
+            <rect x="0" y="2" width="17" height="44" fill="#E24B4A" clip-path="url(#g2)"/>
+            <rect x="17" y="2" width="16" height="44" fill="#7F77DD" clip-path="url(#g2)"/>
+            <rect x="33" y="2" width="17" height="44" fill="#378ADD" clip-path="url(#g2)"/>
+            <line x1="17" y1="2" x2="17" y2="46" stroke="white" stroke-opacity="0.22" stroke-width="1" clip-path="url(#g2)"/>
+            <line x1="33" y1="2" x2="33" y2="46" stroke="white" stroke-opacity="0.22" stroke-width="1" clip-path="url(#g2)"/>
+            <rect x="0" y="2" width="50" height="44" rx="10" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+            <text x="25" y="24" text-anchor="middle" dominant-baseline="central" font-size="26" font-weight="700" fill="white" font-family="system-ui">P</text>
+            <path d="M19,46 L25,57 L31,46 Z" fill="#7F77DD"/>
+            <line x1="62" y1="8" x2="62" y2="55" stroke="rgba(255,255,255,0.15)" stroke-width="0.8"/>
+            <text x="71" y="27" font-size="21" font-weight="500" fill="white" font-family="system-ui" letter-spacing="3">POLIT</text>
+            <text x="72" y="47" font-size="11" font-weight="400" fill="#64748b" font-family="system-ui" letter-spacing="2">폴릿</text>
+          </svg>
+        </div>
+        <nav class="gnb-nav">
+          <div class="gnb-link active">🏠 홈</div>
+          <div class="gnb-link azit-link">🔴 진보 아지트</div>
+          <div class="gnb-link battle-link">⚔️ 전쟁터</div>
+        </nav>
+        <div class="gnb-right">
+          <div class="gnb-avatar">홍</div>
+          <span class="gnb-faction-badge">🔴 진보</span>
+          <span style="font-size:13px;color:#94a3b8">홍길동 ▾</span>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:#94a3b8;margin-top:6px">※ 아지트 메뉴는 본인 진영명이 표시됩니다. 타 진영 아지트는 접근 불가.</p>
+  </div>
+
+  <!-- P2 로그인 + 티커 -->
+  <div class="gnb-group">
+    <div class="gnb-label"><span style="background:rgba(127,119,221,0.1);color:var(--purple);padding:2px 8px;border-radius:4px;font-size:10px">Phase 2</span> 로그인 후 — 실시간 점수 티커 + 드롭다운 메뉴</div>
+    <div class="gnb" style="border-radius:12px">
+      <div class="score-bar" style="border-radius:12px 12px 0 0">
+        <span class="live-dot"></span>
+        <span style="font-size:11px;color:#94a3b8;letter-spacing:1px;margin-left:4px">LIVE</span>
+        <div class="score-ticker-wrap">
+          <span class="st-sep">|</span>
+          <span class="st-name">보수</span><span class="st-val">42.7</span><span class="st-up">▲2.1</span>
+          <span class="st-sep">·</span>
+          <span class="st-name">중도</span><span class="st-val">38.1</span><span class="st-eq">—</span>
+          <span class="st-sep">·</span>
+          <span class="st-name">진보</span><span class="st-val">51.3</span><span class="st-dn">▼0.8</span>
+        </div>
+      </div>
+      <div class="gnb-inner">
+        <div class="gnb-logo">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 164 60">
+            <defs><clipPath id="g3"><rect x="0" y="2" width="50" height="44" rx="10"/></clipPath></defs>
+            <rect x="0" y="2" width="17" height="44" fill="#E24B4A" clip-path="url(#g3)"/>
+            <rect x="17" y="2" width="16" height="44" fill="#7F77DD" clip-path="url(#g3)"/>
+            <rect x="33" y="2" width="17" height="44" fill="#378ADD" clip-path="url(#g3)"/>
+            <line x1="17" y1="2" x2="17" y2="46" stroke="white" stroke-opacity="0.22" stroke-width="1" clip-path="url(#g3)"/>
+            <line x1="33" y1="2" x2="33" y2="46" stroke="white" stroke-opacity="0.22" stroke-width="1" clip-path="url(#g3)"/>
+            <rect x="0" y="2" width="50" height="44" rx="10" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+            <text x="25" y="24" text-anchor="middle" dominant-baseline="central" font-size="26" font-weight="700" fill="white" font-family="system-ui">P</text>
+            <path d="M19,46 L25,57 L31,46 Z" fill="#7F77DD"/>
+            <line x1="62" y1="8" x2="62" y2="55" stroke="rgba(255,255,255,0.15)" stroke-width="0.8"/>
+            <text x="71" y="27" font-size="21" font-weight="500" fill="white" font-family="system-ui" letter-spacing="3">POLIT</text>
+            <text x="72" y="47" font-size="11" font-weight="400" fill="#64748b" font-family="system-ui" letter-spacing="2">폴릿</text>
+          </svg>
+        </div>
+        <nav class="gnb-nav">
+          <div class="gnb-link active">🏠 홈</div>
+          <div class="gnb-link azit-link">🔴 아지트 <span class="caret">▾</span></div>
+          <div class="gnb-link battle-link">⚔️ 전쟁터 <span class="caret">▾</span></div>
+          <div class="gnb-link">📊 통계</div>
+        </nav>
+        <div class="gnb-right">
+          <div class="gnb-bell">🔔<span class="notif-dot"></span></div>
+          <div class="gnb-avatar">홍</div>
+          <span class="gnb-faction-badge">🔴 진보</span>
+          <span style="font-size:13px;color:#94a3b8">홍길동 ▾</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P3 관리자 -->
+  <div class="gnb-group">
+    <div class="gnb-label"><span style="background:rgba(226,75,74,0.1);color:var(--red);padding:2px 8px;border-radius:4px;font-size:10px">Phase 3</span> 관리자(SuperAdmin) 로그인</div>
+    <div class="gnb" style="border:1px solid rgba(251,191,36,0.2)">
+      <div class="score-bar" style="border-radius:12px 12px 0 0">
+        <span class="live-dot"></span>
+        <span style="font-size:11px;color:#94a3b8;letter-spacing:1px;margin-left:4px">LIVE</span>
+        <div class="score-ticker-wrap">
+          <span class="st-sep">|</span>
+          <span class="st-name">보수</span><span class="st-val">42.7</span><span class="st-up">▲2.1</span>
+          <span class="st-sep">·</span>
+          <span class="st-name">중도</span><span class="st-val">38.1</span><span class="st-eq">—</span>
+          <span class="st-sep">·</span>
+          <span class="st-name">진보</span><span class="st-val">51.3</span><span class="st-dn">▼0.8</span>
+        </div>
+      </div>
+      <div class="gnb-inner">
+        <div class="gnb-logo">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 164 60">
+            <defs><clipPath id="g4"><rect x="0" y="2" width="50" height="44" rx="10"/></clipPath></defs>
+            <rect x="0" y="2" width="17" height="44" fill="#E24B4A" clip-path="url(#g4)"/>
+            <rect x="17" y="2" width="16" height="44" fill="#7F77DD" clip-path="url(#g4)"/>
+            <rect x="33" y="2" width="17" height="44" fill="#378ADD" clip-path="url(#g4)"/>
+            <line x1="17" y1="2" x2="17" y2="46" stroke="white" stroke-opacity="0.22" stroke-width="1" clip-path="url(#g4)"/>
+            <line x1="33" y1="2" x2="33" y2="46" stroke="white" stroke-opacity="0.22" stroke-width="1" clip-path="url(#g4)"/>
+            <rect x="0" y="2" width="50" height="44" rx="10" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+            <text x="25" y="24" text-anchor="middle" dominant-baseline="central" font-size="26" font-weight="700" fill="white" font-family="system-ui">P</text>
+            <path d="M19,46 L25,57 L31,46 Z" fill="#7F77DD"/>
+            <line x1="62" y1="8" x2="62" y2="55" stroke="rgba(255,255,255,0.15)" stroke-width="0.8"/>
+            <text x="71" y="27" font-size="21" font-weight="500" fill="white" font-family="system-ui" letter-spacing="3">POLIT</text>
+            <text x="72" y="47" font-size="11" font-weight="400" fill="#64748b" font-family="system-ui" letter-spacing="2">폴릿</text>
+          </svg>
+        </div>
+        <nav class="gnb-nav">
+          <div class="gnb-link active">🏠 홈</div>
+          <div class="gnb-link">🏡 아지트 <span class="caret">▾</span></div>
+          <div class="gnb-link battle-link">⚔️ 전쟁터 <span class="caret">▾</span></div>
+          <div class="gnb-link">📊 통계 <span class="caret">▾</span></div>
+          <div class="gnb-link">🗳️ 투표</div>
+          <div class="gnb-admin-link">⚙️ 관리자 <span class="caret">▾</span></div>
+        </nav>
+        <div class="gnb-right">
+          <div class="gnb-bell">🔔<span class="notif-dot"></span></div>
+          <div class="gnb-avatar" style="background:linear-gradient(135deg,#fbbf24,#f59e0b)">관</div>
+          <span class="gnb-faction-badge" style="background:rgba(251,191,36,0.12);color:#fbbf24;border-color:rgba(251,191,36,0.3)">⭐ 관리자</span>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:#94a3b8;margin-top:6px">※ 관리자 메뉴는 role이 admin 이상인 계정에만 GNB에 노출됩니다.</p>
+  </div>
+</div>
+
+<div class="divider-line" style="max-width:1100px;margin:0 auto"></div>
+
+<!-- ─── SECTION 3: 드롭다운 상세 ─────────────── -->
+<div class="section">
+  <div class="section-title">🗂️ 드롭다운 메뉴 상세 설계</div>
+  <p class="section-desc">각 GNB 항목 호버/클릭 시 표시되는 드롭다운 구성입니다.</p>
+
+  <div class="dropdown-area">
+
+    <!-- 아지트 드롭다운 -->
+    <div>
+      <p style="font-size:11px;font-weight:700;color:var(--red);letter-spacing:1px;margin-bottom:8px">🏡 아지트 (진보 회원 기준)</p>
+      <div class="dropdown-box">
+        <div class="dd-header">내 진영 · 진보</div>
+        <div class="dd-item active"><span class="dd-icon">📋</span>전체보기<span class="dd-count hot">48</span></div>
+        <div class="dd-item"><span class="dd-icon">💬</span>자유게시판<span class="dd-count">21</span></div>
+        <div class="dd-item"><span class="dd-icon">🗣️</span>시사토론<span class="dd-count hot">15</span></div>
+        <div class="dd-item"><span class="dd-icon">📰</span>정보공유<span class="dd-count">8</span></div>
+        <div class="dd-item"><span class="dd-icon">❓</span>Q&A<span class="dd-count">4</span></div>
+        <div class="dd-divider"></div>
+        <div class="dd-header">진영 현황</div>
+        <div class="dd-item"><span class="dd-icon">🏆</span>진영 랭킹</div>
+        <div class="dd-item"><span class="dd-icon">⭐</span>칭호 목록</div>
+      </div>
+    </div>
+
+    <!-- 전쟁터 드롭다운 -->
+    <div>
+      <p style="font-size:11px;font-weight:700;color:var(--red);letter-spacing:1px;margin-bottom:8px">⚔️ 전쟁터</p>
+      <div class="dropdown-box">
+        <div class="dd-header">게시판 선택</div>
+        <div class="dd-item"><span class="dd-icon">📋</span>전체보기<span class="dd-count hot">847</span></div>
+        <div class="dd-item active"><span class="dd-icon">🗣️</span>정치토론<span class="dd-count hot">312</span></div>
+        <div class="dd-item"><span class="dd-icon">📰</span>시사이슈<span class="dd-count">198</span></div>
+        <div class="dd-item"><span class="dd-icon">💬</span>자유토론<span class="dd-count">143</span></div>
+        <div class="dd-item"><span class="dd-icon">🗳️</span>투표·설문<span class="dd-count">67</span></div>
+        <div class="dd-item"><span class="dd-icon">❓</span>Q&A<span class="dd-count">42</span></div>
+        <div class="dd-divider"></div>
+        <div class="dd-item"><span class="dd-icon">📢</span>공지사항</div>
+      </div>
+    </div>
+
+    <!-- 통계 드롭다운 -->
+    <div>
+      <p style="font-size:11px;font-weight:700;color:var(--purple);letter-spacing:1px;margin-bottom:8px">📊 통계 (Phase 3)</p>
+      <div class="dropdown-box">
+        <div class="dd-header">진영 점수 이력</div>
+        <div class="dd-item"><span class="dd-icon">📅</span>일별 점수</div>
+        <div class="dd-item"><span class="dd-icon">📆</span>월별 점수</div>
+        <div class="dd-item"><span class="dd-icon">🗓️</span>연도별 점수</div>
+        <div class="dd-divider"></div>
+        <div class="dd-header">커뮤니티</div>
+        <div class="dd-item"><span class="dd-icon">🏆</span>활동 랭킹</div>
+        <div class="dd-item"><span class="dd-icon">📊</span>여론 리포트</div>
+      </div>
+    </div>
+
+    <!-- 프로필 드롭다운 -->
+    <div>
+      <p style="font-size:11px;font-weight:700;color:var(--sub);letter-spacing:1px;margin-bottom:8px">👤 프로필</p>
+      <div class="dropdown-box">
+        <div class="dd-user-header">
+          <div class="dd-username">홍길동</div>
+          <div class="dd-userbadge"><span style="background:rgba(226,75,74,0.15);color:var(--red);font-size:11px;padding:2px 8px;border-radius:100px;font-weight:600">🔴 진보</span></div>
+          <div class="dd-manner">매너 점수 92점</div>
+        </div>
+        <div class="dd-item"><span class="dd-icon">📝</span>내 게시물</div>
+        <div class="dd-item"><span class="dd-icon">💬</span>내 댓글</div>
+        <div class="dd-item"><span class="dd-icon">⭐</span>내 칭호</div>
+        <div class="dd-item"><span class="dd-icon">❤️</span>스크랩</div>
+        <div class="dd-divider"></div>
+        <div class="dd-item"><span class="dd-icon">⚙️</span>설정</div>
+        <div class="dd-item danger"><span class="dd-icon">↩️</span>로그아웃</div>
+      </div>
+    </div>
+
+    <!-- 관리자 드롭다운 -->
+    <div>
+      <p style="font-size:11px;font-weight:700;color:#fbbf24;letter-spacing:1px;margin-bottom:8px">⚙️ 관리자 메뉴</p>
+      <div class="dropdown-box">
+        <div class="dd-header">대시보드</div>
+        <div class="dd-item"><span class="dd-icon">📈</span>메인 대시보드</div>
+        <div class="dd-item"><span class="dd-icon">📡</span>실시간 모니터</div>
+        <div class="dd-divider"></div>
+        <div class="dd-header">콘텐츠 관리</div>
+        <div class="dd-item"><span class="dd-icon">🗂️</span>게시판 관리</div>
+        <div class="dd-item"><span class="dd-icon">🚨</span>신고 처리<span class="dd-count hot">3</span></div>
+        <div class="dd-divider"></div>
+        <div class="dd-header">운영</div>
+        <div class="dd-item"><span class="dd-icon">👥</span>사용자 관리</div>
+        <div class="dd-item"><span class="dd-icon">⚖️</span>점수 가중치</div>
+        <div class="dd-item"><span class="dd-icon">🛡️</span>시스템 설정</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider-line" style="max-width:1100px;margin:0 auto"></div>
+
+<!-- ─── SECTION 4: 화면 흐름 (Phase별 대표 화면) ── -->
+<div class="section">
+  <div class="section-title">🖼️ Phase별 대표 프론트 화면</div>
+  <p class="section-desc">각 Phase에서 사용자가 경험하는 핵심 화면의 GNB + 콘텐츠 영역 미리보기입니다.</p>
+
+  <!-- Phase 1 -->
+  <p style="font-size:13px;font-weight:700;color:var(--blue);margin-bottom:12px;letter-spacing:0.5px">── Phase 1: 비로그인 홈 (성향 테스트 진입 유도)</p>
+  <div class="mockup-frame">
+    <div class="mockup-browser-bar">
+      <div class="browser-dots">
+        <div class="browser-dot" style="background:#ff5f57"></div>
+        <div class="browser-dot" style="background:#febc2e"></div>
+        <div class="browser-dot" style="background:#28c840"></div>
+      </div>
+      <div class="browser-url">polit.kr</div>
+    </div>
+    <div class="mockup-content">
+      <div style="background:var(--dark2);padding:0 20px;height:52px;display:flex;align-items:center;gap:24px;border-bottom:1px solid #1e293b">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 164 60" style="height:36px;width:auto">
+          <defs><clipPath id="p1a"><rect x="0" y="2" width="50" height="44" rx="10"/></clipPath></defs>
+          <rect x="0" y="2" width="17" height="44" fill="#E24B4A" clip-path="url(#p1a)"/>
+          <rect x="17" y="2" width="16" height="44" fill="#7F77DD" clip-path="url(#p1a)"/>
+          <rect x="33" y="2" width="17" height="44" fill="#378ADD" clip-path="url(#p1a)"/>
+          <text x="25" y="24" text-anchor="middle" dominant-baseline="central" font-size="26" font-weight="700" fill="white" font-family="system-ui">P</text>
+          <path d="M19,46 L25,57 L31,46 Z" fill="#7F77DD"/>
+          <text x="71" y="27" font-size="21" font-weight="500" fill="white" font-family="system-ui" letter-spacing="3">POLIT</text>
+          <text x="72" y="47" font-size="11" fill="#64748b" font-family="system-ui" letter-spacing="2">폴릿</text>
+        </svg>
+        <div style="display:flex;gap:4px;margin-left:8px">
+          <div class="gnb-link active" style="font-size:12px">🏠 홈</div>
+          <div class="gnb-link battle-link" style="font-size:12px">⚔️ 전쟁터</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="gnb-btn-ghost" style="font-size:11px">로그인</button>
+          <button class="gnb-btn-primary" style="font-size:11px">회원가입</button>
+        </div>
+      </div>
+      <div class="page-hero-stub">
+        <div style="font-size:11px;color:#7F77DD;letter-spacing:1px;margin-bottom:10px">🗳️ 대한민국 No.1 정치 성향 커뮤니티</div>
+        <div class="stub-title">보수와 진보가<br>같은 공간에서 말하다</div>
+        <div class="stub-desc">나의 정치 성향을 진단하고, 진영과 소통하며 토론하세요</div>
+        <div class="stub-cta">
+          <button class="stub-btn primary">성향 테스트 시작하기 →</button>
+          <button class="stub-btn ghost">전쟁터 구경하기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase 2 -->
+  <p style="font-size:13px;font-weight:700;color:var(--purple);margin-bottom:12px;margin-top:32px;letter-spacing:0.5px">── Phase 2: 로그인 후 — 아지트 진입 화면</p>
+  <div class="mockup-frame">
+    <div class="mockup-browser-bar">
+      <div class="browser-dots">
+        <div class="browser-dot" style="background:#ff5f57"></div>
+        <div class="browser-dot" style="background:#febc2e"></div>
+        <div class="browser-dot" style="background:#28c840"></div>
+      </div>
+      <div class="browser-url">polit.kr/azit/progressive</div>
+    </div>
+    <div class="mockup-content">
+      <!-- 티커 -->
+      <div style="background:var(--dark);padding:5px 20px;display:flex;align-items:center;gap:12px">
+        <span class="live-dot"></span>
+        <span style="font-size:10px;color:#94a3b8">LIVE</span>
+        <div style="display:flex;gap:6px;font-size:11px">
+          <span style="color:#94a3b8">보수</span><span style="color:white;font-weight:700">42.7</span><span style="color:#22c55e;font-size:10px">▲</span>
+          <span style="color:#334155">·</span>
+          <span style="color:#94a3b8">중도</span><span style="color:white;font-weight:700">38.1</span>
+          <span style="color:#334155">·</span>
+          <span style="color:#94a3b8">진보</span><span style="color:white;font-weight:700">51.3</span><span style="color:#f87171;font-size:10px">▼</span>
+        </div>
+      </div>
+      <!-- GNB -->
+      <div style="background:var(--dark2);padding:0 20px;height:50px;display:flex;align-items:center;gap:20px;border-bottom:1px solid #1e293b">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 164 60" style="height:34px;width:auto">
+          <defs><clipPath id="p2a"><rect x="0" y="2" width="50" height="44" rx="10"/></clipPath></defs>
+          <rect x="0" y="2" width="17" height="44" fill="#E24B4A" clip-path="url(#p2a)"/>
+          <rect x="17" y="2" width="16" height="44" fill="#7F77DD" clip-path="url(#p2a)"/>
+          <rect x="33" y="2" width="17" height="44" fill="#378ADD" clip-path="url(#p2a)"/>
+          <text x="25" y="24" text-anchor="middle" dominant-baseline="central" font-size="26" font-weight="700" fill="white" font-family="system-ui">P</text>
+          <path d="M19,46 L25,57 L31,46 Z" fill="#7F77DD"/>
+          <text x="71" y="27" font-size="21" font-weight="500" fill="white" font-family="system-ui" letter-spacing="3">POLIT</text>
+          <text x="72" y="47" font-size="11" fill="#64748b" font-family="system-ui" letter-spacing="2">폴릿</text>
+        </svg>
+        <div style="display:flex;gap:4px;margin-left:4px">
+          <div class="gnb-link" style="font-size:12px">🏠 홈</div>
+          <div class="gnb-link azit-link" style="font-size:12px">🔴 아지트 ▾</div>
+          <div class="gnb-link battle-link" style="font-size:12px">⚔️ 전쟁터 ▾</div>
+          <div class="gnb-link" style="font-size:12px">📊 통계</div>
+        </div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+          <span style="font-size:16px">🔔</span>
+          <div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--blue));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white">홍</div>
+          <span style="font-size:11px;color:var(--red);font-weight:700">🔴 진보</span>
+        </div>
+      </div>
+      <!-- 아지트 콘텐츠 -->
+      <div class="azit-stub">
+        <div style="flex:0 0 200px">
+          <div style="font-size:12px;color:#64748b;margin-bottom:8px">진보 아지트</div>
+          <div style="font-size:22px;font-weight:700;color:white;margin-bottom:4px">🔴 진보의 방</div>
+          <div style="font-size:12px;color:#94a3b8;margin-bottom:16px">회원 2,000명 · 오늘 게시물 48건</div>
+          <div style="display:flex;gap:6px">
+            <span style="font-size:11px;background:rgba(226,75,74,0.15);color:var(--red);padding:3px 10px;border-radius:100px;border:1px solid rgba(226,75,74,0.3)">진영 대변인</span>
+          </div>
+        </div>
+        <div class="azit-stub-card" style="background:rgba(226,75,74,0.08);border-color:rgba(226,75,74,0.2)">
+          <div class="azit-stub-card-title">자유게시판</div>
+          <div class="azit-stub-card-sub">오늘 21건</div>
+        </div>
+        <div class="azit-stub-card">
+          <div class="azit-stub-card-title">시사토론</div>
+          <div class="azit-stub-card-sub">오늘 15건 🔥</div>
+        </div>
+        <div class="azit-stub-card">
+          <div class="azit-stub-card-title">정보공유</div>
+          <div class="azit-stub-card-sub">오늘 8건</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase 3 통계 -->
+  <p style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:12px;margin-top:32px;letter-spacing:0.5px">── Phase 3: 진영 통계 대시보드 (일별/월별/연별)</p>
+  <div class="mockup-frame">
+    <div class="mockup-browser-bar">
+      <div class="browser-dots">
+        <div class="browser-dot" style="background:#ff5f57"></div>
+        <div class="browser-dot" style="background:#febc2e"></div>
+        <div class="browser-dot" style="background:#28c840"></div>
+      </div>
+      <div class="browser-url">polit.kr/stats/faction-scores?period=monthly</div>
+    </div>
+    <div class="mockup-content" style="background:#0d1117">
+      <!-- 티커 + GNB 압축 -->
+      <div style="background:var(--dark);padding:4px 20px;font-size:10px;color:#64748b;display:flex;gap:12px">
+        <span class="live-dot" style="width:5px;height:5px"></span>
+        <span>보수 <strong style="color:white">42.7</strong></span>
+        <span>·</span>
+        <span>중도 <strong style="color:white">38.1</strong></span>
+        <span>·</span>
+        <span>진보 <strong style="color:white">51.3</strong></span>
+      </div>
+      <div style="background:var(--dark2);padding:0 20px;height:46px;display:flex;align-items:center;gap:20px;border-bottom:1px solid #1e293b">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 164 60" style="height:30px;width:auto">
+          <defs><clipPath id="p3a"><rect x="0" y="2" width="50" height="44" rx="10"/></clipPath></defs>
+          <rect x="0" y="2" width="17" height="44" fill="#E24B4A" clip-path="url(#p3a)"/>
+          <rect x="17" y="2" width="16" height="44" fill="#7F77DD" clip-path="url(#p3a)"/>
+          <rect x="33" y="2" width="17" height="44" fill="#378ADD" clip-path="url(#p3a)"/>
+          <text x="25" y="24" text-anchor="middle" dominant-baseline="central" font-size="26" font-weight="700" fill="white" font-family="system-ui">P</text>
+          <path d="M19,46 L25,57 L31,46 Z" fill="#7F77DD"/>
+          <text x="71" y="27" font-size="21" font-weight="500" fill="white" font-family="system-ui" letter-spacing="3">POLIT</text>
+          <text x="72" y="47" font-size="11" fill="#64748b" font-family="system-ui" letter-spacing="2">폴릿</text>
+        </svg>
+        <div style="display:flex;gap:4px">
+          <div class="gnb-link" style="font-size:11px">🏠</div>
+          <div class="gnb-link" style="font-size:11px">아지트 ▾</div>
+          <div class="gnb-link battle-link" style="font-size:11px">전쟁터 ▾</div>
+          <div class="gnb-link active" style="font-size:11px">📊 통계 ▾</div>
+          <div class="gnb-link" style="font-size:11px">🗳️ 투표</div>
+        </div>
+        <div style="margin-left:auto;font-size:11px;color:#94a3b8">관리자 ▾</div>
+      </div>
+      <!-- 통계 페이지 스텁 -->
+      <div style="padding:24px 28px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div>
+            <div style="font-size:11px;color:#64748b;letter-spacing:1px;margin-bottom:4px">FACTION SCORE HISTORY</div>
+            <div style="font-size:20px;font-weight:700;color:white">진영별 점수 이력</div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <div style="padding:5px 14px;border-radius:6px;font-size:12px;font-weight:600;background:var(--dark2);color:#64748b;border:1px solid #1e293b;cursor:pointer">일별</div>
+            <div style="padding:5px 14px;border-radius:6px;font-size:12px;font-weight:600;background:var(--purple);color:white;cursor:pointer">월별</div>
+            <div style="padding:5px 14px;border-radius:6px;font-size:12px;font-weight:600;background:var(--dark2);color:#64748b;border:1px solid #1e293b;cursor:pointer">연별</div>
+          </div>
+        </div>
+        <!-- 가짜 차트 영역 -->
+        <div style="background:var(--dark2);border:1px solid #1e293b;border-radius:10px;padding:20px;height:120px;display:flex;align-items:flex-end;gap:3px;overflow:hidden">
+          <!-- 막대그래프 시뮬레이션 -->
+          <div style="flex:1;display:flex;align-items:flex-end;gap:2px">
+            <div style="flex:1;background:rgba(55,138,221,0.6);border-radius:3px 3px 0 0" title="보수" style="height:60%"></div>
+            <div style="flex:1;background:rgba(127,119,221,0.6);border-radius:3px 3px 0 0" title="중도" style="height:40%"></div>
+            <div style="flex:1;background:rgba(226,75,74,0.6);border-radius:3px 3px 0 0" title="진보" style="height:75%"></div>
+          </div>
+          <div style="flex:1;display:flex;align-items:flex-end;gap:2px">
+            <div style="flex:1;height:45%;background:rgba(55,138,221,0.6);border-radius:3px 3px 0 0"></div>
+            <div style="flex:1;height:55%;background:rgba(127,119,221,0.6);border-radius:3px 3px 0 0"></div>
+            <div style="flex:1;height:80%;background:rgba(226,75,74,0.6);border-radius:3px 3px 0 0"></div>
+          </div>
+          <div style="flex:1;display:flex;align-items:flex-end;gap:2px">
+            <div style="flex:1;height:70%;background:rgba(55,138,221,0.6);border-radius:3px 3px 0 0"></div>
+            <div style="flex:1;height:42%;background:rgba(127,119,221,0.6);border-radius:3px 3px 0 0"></div>
+            <div style="flex:1;height:65%;background:rgba(226,75,74,0.6);border-radius:3px 3px 0 0"></div>
+          </div>
+          <div style="flex:1;display:flex;align-items:flex-end;gap:2px">
+            <div style="flex:1;height:55%;background:rgba(55,138,221,0.6);border-radius:3px 3px 0 0"></div>
+            <div style="flex:1;height:48%;background:rgba(127,119,221,0.6);border-radius:3px 3px 0 0"></div>
+            <div style="flex:1;height:90%;background:rgba(226,75,74,0.6);border-radius:3px 3px 0 0"></div>
+          </div>
+          <div style="flex:1;display:flex;align-items:flex-end;gap:2px">
+            <div style="flex:1;height:72%;background:rgba(55,138,221,0.6);border-radius:3px 3px 0 0"></div>
+            <div style="flex:1;height:52%;background:rgba(127,119,221,0.6);border-radius:3px 3px 0 0"></div>
+            <div style="flex:1;height:85%;background:rgba(226,75,74,0.6);border-radius:3px 3px 0 0"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:16px;margin-top:10px">
+          <span style="font-size:11px;color:#64748b;display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(55,138,221,0.6)"></span>보수</span>
+          <span style="font-size:11px;color:#64748b;display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(127,119,221,0.6)"></span>중도</span>
+          <span style="font-size:11px;color:#64748b;display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(226,75,74,0.6)"></span>진보</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider-line" style="max-width:1100px;margin:0 auto"></div>
+
+<!-- ─── SECTION 5: 모바일 메뉴 ─────────────── -->
+<div class="section">
+  <div class="section-title">📱 모바일 메뉴 (햄버거 드로어)</div>
+  <p class="section-desc">375px 모바일 뷰포트 기준. Phase 2 이후 로그인 상태의 드로어 메뉴입니다.</p>
+
+  <div style="display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap">
+    <!-- 모바일 GNB 닫힌 상태 -->
+    <div>
+      <p style="font-size:11px;color:var(--sub);margin-bottom:10px;font-weight:600">닫힌 상태</p>
+      <div class="mobile-frame" style="min-height:auto">
+        <div class="mobile-gnb">
+          <div class="hamburger"><span></span><span></span><span></span></div>
+          <div class="mobile-logo">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 164 60">
+              <defs><clipPath id="mb1"><rect x="0" y="2" width="50" height="44" rx="10"/></clipPath></defs>
+              <rect x="0" y="2" width="17" height="44" fill="#E24B4A" clip-path="url(#mb1)"/>
+              <rect x="17" y="2" width="16" height="44" fill="#7F77DD" clip-path="url(#mb1)"/>
+              <rect x="33" y="2" width="17" height="44" fill="#378ADD" clip-path="url(#mb1)"/>
+              <text x="25" y="24" text-anchor="middle" dominant-baseline="central" font-size="26" font-weight="700" fill="white" font-family="system-ui">P</text>
+              <path d="M19,46 L25,57 L31,46 Z" fill="#7F77DD"/>
+              <text x="71" y="27" font-size="21" font-weight="500" fill="white" font-family="system-ui" letter-spacing="3">POLIT</text>
+            </svg>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:18px;position:relative">🔔<span style="position:absolute;top:-2px;right:-2px;width:7px;height:7px;background:var(--red);border-radius:50%;border:1px solid var(--dark2);display:inline-block"></span></span>
+            <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--blue));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white">홍</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 모바일 드로어 열린 상태 -->
+    <div>
+      <p style="font-size:11px;color:var(--sub);margin-bottom:10px;font-weight:600">드로어 열린 상태</p>
+      <div class="mobile-frame">
+        <div class="mobile-gnb">
+          <div style="font-size:18px;cursor:pointer;color:#94a3b8">✕</div>
+          <div class="mobile-logo">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 164 60">
+              <defs><clipPath id="mb2"><rect x="0" y="2" width="50" height="44" rx="10"/></clipPath></defs>
+              <rect x="0" y="2" width="17" height="44" fill="#E24B4A" clip-path="url(#mb2)"/>
+              <rect x="17" y="2" width="16" height="44" fill="#7F77DD" clip-path="url(#mb2)"/>
+              <rect x="33" y="2" width="17" height="44" fill="#378ADD" clip-path="url(#mb2)"/>
+              <text x="25" y="24" text-anchor="middle" dominant-baseline="central" font-size="26" font-weight="700" fill="white" font-family="system-ui">P</text>
+              <path d="M19,46 L25,57 L31,46 Z" fill="#7F77DD"/>
+              <text x="71" y="27" font-size="21" font-weight="500" fill="white" font-family="system-ui" letter-spacing="3">POLIT</text>
+            </svg>
+          </div>
+          <div style="width:28px"></div>
+        </div>
+        <div class="mobile-drawer">
+          <div class="mobile-drawer-top">
+            <div class="mobile-user-row">
+              <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--blue));display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:white">홍</div>
+              <div>
+                <div style="font-size:14px;font-weight:600;color:white">홍길동</div>
+                <div><span style="font-size:11px;background:rgba(226,75,74,0.15);color:var(--red);padding:2px 8px;border-radius:100px;font-weight:600;border:1px solid rgba(226,75,74,0.3)">🔴 진보</span></div>
+              </div>
+            </div>
+            <div class="mobile-score-row">
+              <div class="mobile-score-item"><div class="mobile-score-name">보수</div><div class="mobile-score-val" style="color:var(--blue)">42.7</div></div>
+              <div class="mobile-score-item"><div class="mobile-score-name">중도</div><div class="mobile-score-val" style="color:var(--purple)">38.1</div></div>
+              <div class="mobile-score-item"><div class="mobile-score-name">진보</div><div class="mobile-score-val" style="color:var(--red)">51.3</div></div>
+            </div>
+          </div>
+          <div class="mobile-nav-section">
+            <div class="mobile-nav-item"><span class="mobile-nav-icon">🏠</span>홈</div>
+            <div class="mobile-nav-item active"><span class="mobile-nav-icon">🔴</span>진보 아지트</div>
+            <div class="mobile-nav-item"><span class="mobile-nav-icon">⚔️</span>전쟁터</div>
+            <div class="mobile-nav-item"><span class="mobile-nav-icon">🗳️</span>실시간 투표</div>
+            <div class="mobile-nav-item"><span class="mobile-nav-icon">📊</span>통계</div>
+            <div style="height:1px;background:#1e293b;margin:6px 0"></div>
+            <div class="mobile-nav-label">내 계정</div>
+            <div class="mobile-nav-item"><span class="mobile-nav-icon">📝</span>내 게시물</div>
+            <div class="mobile-nav-item"><span class="mobile-nav-icon">⭐</span>칭호·랭킹</div>
+            <div class="mobile-nav-item"><span class="mobile-nav-icon">⚙️</span>설정</div>
+            <div class="mobile-nav-item" style="color:var(--red)"><span class="mobile-nav-icon">↩️</span>로그아웃</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── SECTION 6: 요약 어노테이션 ───────────── -->
+<div class="section">
+  <div class="section-title">📌 Phase별 핵심 변경 요약</div>
+  <div class="anno-grid">
+    <div class="anno-card">
+      <div class="anno-phase p1">Phase 1 — 인프라·인증</div>
+      <div class="anno-title">기반 메뉴 구성</div>
+      <ul class="anno-list">
+        <li>홈 (랜딩 + 가입 유도)</li>
+        <li>전쟁터 (열람 전용, 비로그인 가능)</li>
+        <li>아지트 (로그인 + 진영 배정 후)</li>
+        <li>로그인 / 회원가입 버튼</li>
+        <li>프로필 드롭다운 (설정, 로그아웃)</li>
+        <li class="added">관리자 메뉴 (기본형)</li>
+      </ul>
+    </div>
+    <div class="anno-card">
+      <div class="anno-phase p2">Phase 2 — 커뮤니티 핵심</div>
+      <div class="anno-title">드롭다운 + 티커 추가</div>
+      <ul class="anno-list">
+        <li>실시간 점수 티커 (GNB 상단 고정)</li>
+        <li class="added">아지트 드롭다운 (게시판 목록)</li>
+        <li class="added">전쟁터 드롭다운 (5개 게시판)</li>
+        <li class="added">통계 메뉴 (일별 점수)</li>
+        <li class="added">알림 🔔 (뱃지 카운트)</li>
+        <li class="added">프로필 확장 (내 게시물·댓글)</li>
+      </ul>
+    </div>
+    <div class="anno-card">
+      <div class="anno-phase p3">Phase 3 — 분석·실시간</div>
+      <div class="anno-title">완성형 메뉴</div>
+      <ul class="anno-list">
+        <li>통계 드롭다운 (일·월·연·리포트)</li>
+        <li class="added">실시간 투표 독립 메뉴</li>
+        <li class="added">프로필 확장 (매너점수·칭호)</li>
+        <li class="added">WebSocket 실시간 알림</li>
+        <li class="admin">관리자 드롭다운 완성형</li>
+        <li class="admin">실시간 모니터 패널</li>
+      </ul>
+    </div>
+  </div>
+  <div style="margin-top:20px;padding:16px 20px;background:white;border:1px solid var(--border);border-radius:10px;font-size:12px;color:var(--sub);line-height:1.8">
+    <strong style="color:var(--text)">범례</strong>  ·  ✓ 기본 제공  ·  ＋ 해당 Phase 신규 추가  ·  ★ 관리자 전용 (role 기반 조건부 표시)
+  </div>
+</div>
+
+</body>
+</html>

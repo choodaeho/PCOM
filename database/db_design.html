@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>폴릿(POLIT) — DB 설계 (Phase 1+2)</title>
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#378ADD;--purple:#7F77DD;--red:#E24B4A;
+  --dark:#0f172a;--dark2:#1e293b;
+  --text:#1a1a2e;--sub:#64748b;--border:#e2e8f0;
+  --bg:#f8fafc;--white:#fff;
+  --p1:#dbeafe;--p1b:#2563eb;
+  --p2:#ede9fe;--p2b:#7c3aed;
+  --both:#f0fdf4;--bothb:#16a34a;
+  --mono:'JetBrains Mono',monospace;
+}
+body{font-family:'Noto Sans KR',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6}
+
+/* DOC HEADER */
+.doc-header{background:var(--dark);padding:36px 40px;border-bottom:3px solid var(--purple)}
+.doc-header h1{font-size:24px;font-weight:700;color:white}
+.doc-header p{font-size:13px;color:#64748b;margin-top:6px}
+.phase-tags{display:flex;gap:8px;margin-top:14px}
+.tag{padding:4px 12px;border-radius:100px;font-size:11px;font-weight:600;border:1px solid}
+.tag-p1{background:rgba(37,99,235,0.15);color:#60a5fa;border-color:rgba(37,99,235,0.3)}
+.tag-p2{background:rgba(124,58,237,0.15);color:#a78bfa;border-color:rgba(124,58,237,0.3)}
+.tag-both{background:rgba(22,163,74,0.15);color:#4ade80;border-color:rgba(22,163,74,0.3)}
+
+/* LAYOUT */
+.wrap{max-width:1280px;margin:0 auto;padding:32px 40px}
+.section-title{font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px;padding-top:40px;border-top:2px solid var(--border);margin-top:40px;display:flex;align-items:center;gap:10px}
+.section-title:first-child{border-top:none;padding-top:0;margin-top:0}
+.section-sub{font-size:13px;color:var(--sub);margin-bottom:24px}
+
+/* LEGEND */
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:28px}
+.legend-item{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--sub)}
+.legend-dot{width:12px;height:12px;border-radius:3px}
+
+/* ERD OVERVIEW */
+.erd-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:12px}
+.erd-card{border-radius:10px;padding:14px 16px;border:2px solid;cursor:default;transition:transform .15s}
+.erd-card:hover{transform:translateY(-2px)}
+.erd-card.p1{background:var(--p1);border-color:#93c5fd}
+.erd-card.p2{background:var(--p2);border-color:#c4b5fd}
+.erd-card.both{background:var(--both);border-color:#86efac}
+.erd-table-name{font-size:13px;font-weight:700;font-family:var(--mono);color:var(--text);margin-bottom:4px}
+.erd-phase-badge{font-size:10px;font-weight:600;padding:1px 7px;border-radius:100px;display:inline-block}
+.badge-p1{background:#2563eb;color:white}
+.badge-p2{background:#7c3aed;color:white}
+.badge-both{background:#16a34a;color:white}
+.erd-cols{font-size:11px;color:var(--sub);margin-top:6px;font-family:var(--mono)}
+.erd-rel{font-size:10px;color:#94a3b8;margin-top:4px}
+
+/* TABLE SPEC */
+.table-spec{background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
+.table-spec-header{padding:14px 20px;display:flex;align-items:center;gap:12px;border-bottom:2px solid var(--border)}
+.table-spec-header.h-p1{background:var(--p1);border-bottom-color:#93c5fd}
+.table-spec-header.h-p2{background:var(--p2);border-bottom-color:#c4b5fd}
+.table-spec-header.h-both{background:var(--both);border-bottom-color:#86efac}
+.table-name{font-size:15px;font-weight:700;font-family:var(--mono);color:var(--text)}
+.table-desc{font-size:12px;color:var(--sub);margin-left:auto}
+.col-table{width:100%;border-collapse:collapse}
+.col-table th{padding:9px 16px;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--sub);background:#f8fafc;text-align:left;border-bottom:1px solid var(--border)}
+.col-table td{padding:9px 16px;font-size:12px;border-bottom:1px solid #f1f5f9;vertical-align:top}
+.col-table tr:last-child td{border-bottom:none}
+.col-table tr:hover td{background:#fafbff}
+.col-name{font-family:var(--mono);font-weight:600;color:var(--text)}
+.col-pk{color:#f59e0b}
+.col-fk{color:var(--purple)}
+.col-type{font-family:var(--mono);font-size:11px;color:var(--blue)}
+.col-null{font-size:11px;color:#94a3b8;text-align:center}
+.col-null.nn{color:#ef4444;font-weight:600}
+.col-default{font-family:var(--mono);font-size:11px;color:#64748b}
+.col-note{font-size:11px;color:var(--sub)}
+.pk-icon{color:#f59e0b;font-size:10px}
+.fk-icon{color:var(--purple);font-size:10px}
+.idx-icon{color:#22c55e;font-size:10px}
+.uniq-icon{color:var(--blue);font-size:10px}
+
+/* INDEX SECTION */
+.idx-table{width:100%;border-collapse:collapse;margin-bottom:24px}
+.idx-table th{padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--sub);background:#f8fafc;border:1px solid var(--border);text-align:left}
+.idx-table td{padding:8px 14px;font-size:12px;border:1px solid var(--border);vertical-align:top}
+.idx-table td:nth-child(1){font-family:var(--mono);font-size:11px;color:var(--blue)}
+.idx-name{font-family:var(--mono);font-size:11px;color:var(--text);font-weight:600}
+
+/* MIGRATION ORDER */
+.migration-list{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.migration-item{background:white;border:1px solid var(--border);border-radius:8px;padding:12px 14px;display:flex;align-items:flex-start;gap:10px}
+.migration-num{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.migration-num.p1{background:#dbeafe;color:#2563eb}
+.migration-num.p2{background:#ede9fe;color:#7c3aed}
+.migration-num.both{background:#f0fdf4;color:#16a34a}
+.migration-filename{font-family:var(--mono);font-size:11px;color:var(--text);line-height:1.5}
+.migration-desc{font-size:11px;color:var(--sub);margin-top:2px}
+
+/* SEED DATA */
+.seed-table{width:100%;border-collapse:collapse;margin-bottom:16px}
+.seed-table th{padding:8px 14px;font-size:11px;background:#f8fafc;border:1px solid var(--border);text-align:left;font-weight:600}
+.seed-table td{padding:8px 14px;font-size:12px;border:1px solid var(--border);font-family:var(--mono)}
+
+/* DESIGN NOTES */
+.note-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.note-card{background:white;border:1px solid var(--border);border-radius:10px;padding:16px 18px}
+.note-card h4{font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.note-card p{font-size:12px;color:var(--sub);line-height:1.7}
+
+@media(max-width:900px){.erd-grid{grid-template-columns:1fr 1fr}.migration-list{grid-template-columns:1fr}.note-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="doc-header">
+  <h1>폴릿(POLIT) — 데이터베이스 설계</h1>
+  <p>Phase 1(인프라·인증) + Phase 2(커뮤니티 핵심) 동시 진행 기준 · PostgreSQL 16 · Laravel 11</p>
+  <div class="phase-tags">
+    <span class="tag tag-p1">Phase 1 전용</span>
+    <span class="tag tag-p2">Phase 2 전용</span>
+    <span class="tag tag-both">Phase 1+2 공통</span>
+  </div>
+</div>
+
+<div class="wrap">
+
+<!-- ① ERD 개요 -->
+<div class="section-title">🗂️ 테이블 구성 개요 (ERD)</div>
+<p class="section-sub">총 15개 테이블. 색상은 주요 담당 Phase를 나타냅니다.</p>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#93c5fd"></div>Phase 1 테이블</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#c4b5fd"></div>Phase 2 테이블</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#86efac"></div>Phase 1+2 공통</div>
+</div>
+
+<div class="erd-grid">
+  <div class="erd-card p1">
+    <div class="erd-table-name">users</div>
+    <span class="erd-phase-badge badge-p1">Phase 1</span>
+    <div class="erd-cols">id, email, password<br>political_type, test_score<br>role, status, manner_score</div>
+    <div class="erd-rel">← social_accounts (1:N)<br>← posts, comments (1:N)</div>
+  </div>
+  <div class="erd-card p1">
+    <div class="erd-table-name">social_accounts</div>
+    <span class="erd-phase-badge badge-p1">Phase 1</span>
+    <div class="erd-cols">id, user_id, provider<br>provider_id, token</div>
+    <div class="erd-rel">→ users (N:1)</div>
+  </div>
+  <div class="erd-card p1">
+    <div class="erd-table-name">political_tests</div>
+    <span class="erd-phase-badge badge-p1">Phase 1</span>
+    <div class="erd-cols">id, question<br>options (JSONB)<br>weight, sort_order</div>
+    <div class="erd-rel">참조 ← test_sessions.answers</div>
+  </div>
+  <div class="erd-card p1">
+    <div class="erd-table-name">political_test_sessions</div>
+    <span class="erd-phase-badge badge-p1">Phase 1</span>
+    <div class="erd-cols">id, user_id, answers<br>final_score, assigned_type<br>is_current</div>
+    <div class="erd-rel">→ users (N:1)</div>
+  </div>
+  <div class="erd-card both">
+    <div class="erd-table-name">score_weights</div>
+    <span class="erd-phase-badge badge-both">공통</span>
+    <div class="erd-cols">id, key, label<br>value, updated_by</div>
+    <div class="erd-rel">관리자 설정 테이블</div>
+  </div>
+  <div class="erd-card p2">
+    <div class="erd-table-name">boards</div>
+    <span class="erd-phase-badge badge-p2">Phase 2</span>
+    <div class="erd-cols">id, name, slug<br>space, allowed_factions<br>board_type, config (JSONB)</div>
+    <div class="erd-rel">← posts (1:N)<br>← polls (1:N)</div>
+  </div>
+  <div class="erd-card p2">
+    <div class="erd-table-name">posts</div>
+    <span class="erd-phase-badge badge-p2">Phase 2</span>
+    <div class="erd-cols">id, user_id, board_id<br>faction (snapshot)<br>title, content, status</div>
+    <div class="erd-rel">→ users, boards<br>← comments, votes, reports</div>
+  </div>
+  <div class="erd-card p2">
+    <div class="erd-table-name">comments</div>
+    <span class="erd-phase-badge badge-p2">Phase 2</span>
+    <div class="erd-cols">id, post_id, user_id<br>parent_id (대댓글)<br>faction, content, depth</div>
+    <div class="erd-rel">→ posts, users<br>← votes, reports</div>
+  </div>
+  <div class="erd-card p2">
+    <div class="erd-table-name">votes</div>
+    <span class="erd-phase-badge badge-p2">Phase 2</span>
+    <div class="erd-cols">id, votable_type<br>votable_id, user_id<br>vote_type (up/down)</div>
+    <div class="erd-rel">Polymorphic → posts, comments</div>
+  </div>
+  <div class="erd-card p2">
+    <div class="erd-table-name">reports</div>
+    <span class="erd-phase-badge badge-p2">Phase 2</span>
+    <div class="erd-cols">id, reportable_type<br>reportable_id, reporter_id<br>reason, status</div>
+    <div class="erd-rel">Polymorphic → posts, comments</div>
+  </div>
+  <div class="erd-card p2">
+    <div class="erd-table-name">polls</div>
+    <span class="erd-phase-badge badge-p2">Phase 2</span>
+    <div class="erd-cols">id, board_id, question<br>options (JSONB)<br>expires_at</div>
+    <div class="erd-rel">→ boards<br>← poll_votes (1:N)</div>
+  </div>
+  <div class="erd-card p2">
+    <div class="erd-table-name">poll_votes</div>
+    <span class="erd-phase-badge badge-p2">Phase 2</span>
+    <div class="erd-cols">id, poll_id, user_id<br>option_id, faction_type</div>
+    <div class="erd-rel">→ polls, users</div>
+  </div>
+  <div class="erd-card both">
+    <div class="erd-table-name">factions_daily_stats</div>
+    <span class="erd-phase-badge badge-both">공통</span>
+    <div class="erd-cols">faction_type, date<br>avg_score (핵심)<br>active_user_count</div>
+    <div class="erd-rel">← monthly, yearly 집계 기반</div>
+  </div>
+  <div class="erd-card both">
+    <div class="erd-table-name">factions_monthly_stats</div>
+    <span class="erd-phase-badge badge-both">공통</span>
+    <div class="erd-cols">faction_type, year_month<br>avg_daily_score<br>total_posts</div>
+    <div class="erd-rel">← daily 집계</div>
+  </div>
+  <div class="erd-card both">
+    <div class="erd-table-name">admin_action_logs</div>
+    <span class="erd-phase-badge badge-both">공통</span>
+    <div class="erd-cols">id, admin_id, action<br>target_type, target_id<br>detail (JSONB)</div>
+    <div class="erd-rel">→ users (관리자)</div>
+  </div>
+</div>
+
+<!-- ② 관계 요약 -->
+<div style="background:white;border:1px solid var(--border);border-radius:10px;padding:20px 24px;margin-bottom:8px">
+  <p style="font-size:13px;font-weight:600;margin-bottom:12px">📌 핵심 관계 요약</p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+    <div style="font-size:12px;color:var(--sub);font-family:var(--mono);background:#f8fafc;padding:8px 12px;border-radius:6px">users 1 ──────── N social_accounts</div>
+    <div style="font-size:12px;color:var(--sub);font-family:var(--mono);background:#f8fafc;padding:8px 12px;border-radius:6px">users 1 ──────── N political_test_sessions</div>
+    <div style="font-size:12px;color:var(--sub);font-family:var(--mono);background:#f8fafc;padding:8px 12px;border-radius:6px">boards 1 ──────── N posts</div>
+    <div style="font-size:12px;color:var(--sub);font-family:var(--mono);background:#f8fafc;padding:8px 12px;border-radius:6px">posts 1 ──────── N comments (+ self: parent_id)</div>
+    <div style="font-size:12px;color:var(--sub);font-family:var(--mono);background:#f8fafc;padding:8px 12px;border-radius:6px">posts/comments ◇── polymorphic ──N votes</div>
+    <div style="font-size:12px;color:var(--sub);font-family:var(--mono);background:#f8fafc;padding:8px 12px;border-radius:6px">posts/comments ◇── polymorphic ──N reports</div>
+    <div style="font-size:12px;color:var(--sub);font-family:var(--mono);background:#f8fafc;padding:8px 12px;border-radius:6px">boards 1 ──────── N polls 1 ──── N poll_votes</div>
+    <div style="font-size:12px;color:var(--sub);font-family:var(--mono);background:#f8fafc;padding:8px 12px;border-radius:6px">factions_daily → monthly → yearly (집계)</div>
+  </div>
+</div>
+
+<!-- ③ 테이블 상세 스펙 -->
+<div class="section-title">📋 테이블 상세 스펙</div>
+<p class="section-sub">🔑 PK &nbsp;|&nbsp; 🔗 FK &nbsp;|&nbsp; 🔍 INDEX &nbsp;|&nbsp; ✦ UNIQUE &nbsp;|&nbsp; NN = NOT NULL</p>
+
+<!-- users -->
+<div class="table-spec">
+  <div class="table-spec-header h-p1">
+    <span class="table-name">users</span>
+    <span class="erd-phase-badge badge-p1" style="font-size:11px">Phase 1</span>
+    <span class="table-desc">회원 기본 정보 · 소프트 삭제 지원</span>
+  </div>
+  <table class="col-table">
+    <thead><tr><th>컬럼</th><th>타입</th><th>NULL</th><th>기본값</th><th>설명</th></tr></thead>
+    <tbody>
+      <tr><td class="col-name"><span class="pk-icon">🔑</span> id</td><td class="col-type">BIGSERIAL</td><td class="col-null nn">NN</td><td class="col-default">auto</td><td class="col-note">PK</td></tr>
+      <tr><td class="col-name">email</td><td class="col-type">VARCHAR(255)</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">✦ UNIQUE · 이메일 가입 및 소셜 식별</td></tr>
+      <tr><td class="col-name">password</td><td class="col-type">VARCHAR(255)</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">소셜 로그인 전용 계정은 NULL</td></tr>
+      <tr><td class="col-name">email_verified_at</td><td class="col-type">TIMESTAMPTZ</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">NULL이면 미인증 → 일부 기능 제한</td></tr>
+      <tr><td class="col-name">nickname</td><td class="col-type">VARCHAR(50)</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">✦ UNIQUE · 가입 후 설정</td></tr>
+      <tr><td class="col-name">political_type</td><td class="col-type">VARCHAR(15)</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">conservative | neutral | progressive · 테스트 후 설정</td></tr>
+      <tr><td class="col-name">test_score</td><td class="col-type">SMALLINT</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">0~100 · CHECK(0-100)</td></tr>
+      <tr><td class="col-name">last_tested_at</td><td class="col-type">TIMESTAMPTZ</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">재테스트 90일 쿨다운 계산용</td></tr>
+      <tr><td class="col-name">role</td><td class="col-type">VARCHAR(20)</td><td class="col-null nn">NN</td><td class="col-default">'user'</td><td class="col-note">user | content_admin | user_admin | stats_admin | super_admin</td></tr>
+      <tr><td class="col-name">status</td><td class="col-type">VARCHAR(10)</td><td class="col-null nn">NN</td><td class="col-default">'active'</td><td class="col-note">active | suspended | withdrawn</td></tr>
+      <tr><td class="col-name">manner_score</td><td class="col-type">SMALLINT</td><td class="col-null nn">NN</td><td class="col-default">100</td><td class="col-note">0~100 · 신고 누적 시 감점</td></tr>
+      <tr><td class="col-name">remember_token</td><td class="col-type">VARCHAR(100)</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">Laravel 자동 관리</td></tr>
+      <tr><td class="col-name">created_at</td><td class="col-type">TIMESTAMPTZ</td><td class="col-null nn">NN</td><td class="col-default">NOW()</td><td class="col-note"></td></tr>
+      <tr><td class="col-name">updated_at</td><td class="col-type">TIMESTAMPTZ</td><td class="col-null nn">NN</td><td class="col-default">NOW()</td><td class="col-note"></td></tr>
+      <tr><td class="col-name">deleted_at</td><td class="col-type">TIMESTAMPTZ</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">Soft Delete · NULL이면 활성</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- social_accounts -->
+<div class="table-spec">
+  <div class="table-spec-header h-p1">
+    <span class="table-name">social_accounts</span>
+    <span class="erd-phase-badge badge-p1">Phase 1</span>
+    <span class="table-desc">소셜 로그인 계정 연결</span>
+  </div>
+  <table class="col-table">
+    <thead><tr><th>컬럼</th><th>타입</th><th>NULL</th><th>기본값</th><th>설명</th></tr></thead>
+    <tbody>
+      <tr><td class="col-name"><span class="pk-icon">🔑</span> id</td><td class="col-type">BIGSERIAL</td><td class="col-null nn">NN</td><td class="col-default">auto</td><td class="col-note">PK</td></tr>
+      <tr><td class="col-name"><span class="fk-icon">🔗</span> user_id</td><td class="col-type">BIGINT</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">FK → users(id) ON DELETE CASCADE</td></tr>
+      <tr><td class="col-name">provider</td><td class="col-type">VARCHAR(20)</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">kakao | naver | google</td></tr>
+      <tr><td class="col-name">provider_id</td><td class="col-type">VARCHAR(255)</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">제공사 고유 ID · (provider, provider_id) UNIQUE</td></tr>
+      <tr><td class="col-name">provider_email</td><td class="col-type">VARCHAR(255)</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">소셜 계정 이메일 (참고용)</td></tr>
+      <tr><td class="col-name">access_token</td><td class="col-type">TEXT</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">암호화 저장 권장</td></tr>
+      <tr><td class="col-name">refresh_token</td><td class="col-type">TEXT</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note"></td></tr>
+      <tr><td class="col-name">token_expires_at</td><td class="col-type">TIMESTAMPTZ</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note"></td></tr>
+      <tr><td class="col-name">created_at / updated_at</td><td class="col-type">TIMESTAMPTZ</td><td class="col-null nn">NN</td><td class="col-default">NOW()</td><td class="col-note"></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- political_tests -->
+<div class="table-spec">
+  <div class="table-spec-header h-p1">
+    <span class="table-name">political_tests</span>
+    <span class="erd-phase-badge badge-p1">Phase 1</span>
+    <span class="table-desc">성향 진단 문항 · 관리자 CRUD</span>
+  </div>
+  <table class="col-table">
+    <thead><tr><th>컬럼</th><th>타입</th><th>NULL</th><th>기본값</th><th>설명</th></tr></thead>
+    <tbody>
+      <tr><td class="col-name"><span class="pk-icon">🔑</span> id</td><td class="col-type">BIGSERIAL</td><td class="col-null nn">NN</td><td class="col-default">auto</td><td class="col-note">PK</td></tr>
+      <tr><td class="col-name">question</td><td class="col-type">TEXT</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">문항 텍스트</td></tr>
+      <tr><td class="col-name">options</td><td class="col-type">JSONB</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">[{id, text, score_delta, order}] · GIN 인덱스</td></tr>
+      <tr><td class="col-name">category</td><td class="col-type">VARCHAR(30)</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">economic | social | security | environment</td></tr>
+      <tr><td class="col-name">weight</td><td class="col-type">DECIMAL(4,2)</td><td class="col-null nn">NN</td><td class="col-default">1.00</td><td class="col-note">문항 가중치 (중요도 보정)</td></tr>
+      <tr><td class="col-name">sort_order</td><td class="col-type">SMALLINT</td><td class="col-null nn">NN</td><td class="col-default">0</td><td class="col-note">출제 순서</td></tr>
+      <tr><td class="col-name">is_active</td><td class="col-type">BOOLEAN</td><td class="col-null nn">NN</td><td class="col-default">TRUE</td><td class="col-note">FALSE면 테스트에서 제외</td></tr>
+      <tr><td class="col-name">created_at / updated_at</td><td class="col-type">TIMESTAMPTZ</td><td class="col-null nn">NN</td><td class="col-default">NOW()</td><td class="col-note"></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- political_test_sessions -->
+<div class="table-spec">
+  <div class="table-spec-header h-p1">
+    <span class="table-name">political_test_sessions</span>
+    <span class="erd-phase-badge badge-p1">Phase 1</span>
+    <span class="table-desc">테스트 응시 이력 · 재테스트 시 이전 결과 보존</span>
+  </div>
+  <table class="col-table">
+    <thead><tr><th>컬럼</th><th>타입</th><th>NULL</th><th>기본값</th><th>설명</th></tr></thead>
+    <tbody>
+      <tr><td class="col-name"><span class="pk-icon">🔑</span> id</td><td class="col-type">BIGSERIAL</td><td class="col-null nn">NN</td><td class="col-default">auto</td><td class="col-note">PK</td></tr>
+      <tr><td class="col-name"><span class="fk-icon">🔗</span> user_id</td><td class="col-type">BIGINT</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">FK → users(id) ON DELETE CASCADE</td></tr>
+      <tr><td class="col-name">answers</td><td class="col-type">JSONB</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">[{question_id, option_id, score_delta}]</td></tr>
+      <tr><td class="col-name">raw_score</td><td class="col-type">DECIMAL(6,2)</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">가중치 적용 전 원점수</td></tr>
+      <tr><td class="col-name">final_score</td><td class="col-type">SMALLINT</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">0~100 정규화 점수</td></tr>
+      <tr><td class="col-name">assigned_type</td><td class="col-type">VARCHAR(15)</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">이 테스트로 배정된 진영</td></tr>
+      <tr><td class="col-name">previous_type</td><td class="col-type">VARCHAR(15)</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">재테스트 시 이전 진영 기록</td></tr>
+      <tr><td class="col-name">is_current</td><td class="col-type">BOOLEAN</td><td class="col-null nn">NN</td><td class="col-default">TRUE</td><td class="col-note">현재 유효한 테스트 결과 여부</td></tr>
+      <tr><td class="col-name">created_at</td><td class="col-type">TIMESTAMPTZ</td><td class="col-null nn">NN</td><td class="col-default">NOW()</td><td class="col-note"></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- score_weights -->
+<div class="table-spec">
+  <div class="table-spec-header h-both">
+    <span class="table-name">score_weights</span>
+    <span class="erd-phase-badge badge-both">공통</span>
+    <span class="table-desc">진영 점수 가중치 · 관리자 패널에서 실시간 조정</span>
+  </div>
+  <table class="col-table">
+    <thead><tr><th>컬럼</th><th>타입</th><th>NULL</th><th>기본값</th><th>설명</th></tr></thead>
+    <tbody>
+      <tr><td class="col-name"><span class="pk-icon">🔑</span> id</td><td class="col-type">BIGSERIAL</td><td class="col-null nn">NN</td><td class="col-default">auto</td><td class="col-note">PK</td></tr>
+      <tr><td class="col-name">key</td><td class="col-type">VARCHAR(30)</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">✦ UNIQUE · post | comment | vote_up | vote_down | report</td></tr>
+      <tr><td class="col-name">label</td><td class="col-type">VARCHAR(100)</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">관리자 UI 표시용 한글 레이블</td></tr>
+      <tr><td class="col-name">value</td><td class="col-type">DECIMAL(5,2)</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">음수 가능 (vote_down, report)</td></tr>
+      <tr><td class="col-name"><span class="fk-icon">🔗</span> updated_by</td><td class="col-type">BIGINT</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">FK → users(id) · 최종 수정 관리자</td></tr>
+      <tr><td class="col-name">updated_at</td><td class="col-type">TIMESTAMPTZ</td><td class="col-null nn">NN</td><td class="col-default">NOW()</td><td class="col-note"></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- boards -->
+<div class="table-spec">
+  <div class="table-spec-header h-p2">
+    <span class="table-name">boards</span>
+    <span class="erd-phase-badge badge-p2">Phase 2</span>
+    <span class="table-desc">생성형 게시판 · 관리자가 동적 생성</span>
+  </div>
+  <table class="col-table">
+    <thead><tr><th>컬럼</th><th>타입</th><th>NULL</th><th>기본값</th><th>설명</th></tr></thead>
+    <tbody>
+      <tr><td class="col-name"><span class="pk-icon">🔑</span> id</td><td class="col-type">BIGSERIAL</td><td class="col-null nn">NN</td><td class="col-default">auto</td><td class="col-note">PK</td></tr>
+      <tr><td class="col-name">name</td><td class="col-type">VARCHAR(100)</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">게시판 이름</td></tr>
+      <tr><td class="col-name">slug</td><td class="col-type">VARCHAR(100)</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">✦ UNIQUE · URL 경로 (예: political-debate)</td></tr>
+      <tr><td class="col-name">description</td><td class="col-type">TEXT</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">관리자 작성 설명</td></tr>
+      <tr><td class="col-name">ai_description</td><td class="col-type">TEXT</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">AI 생성 소개문</td></tr>
+      <tr><td class="col-name">space</td><td class="col-type">VARCHAR(10)</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">azit | battle | both</td></tr>
+      <tr><td class="col-name">allowed_factions</td><td class="col-type">JSONB</td><td class="col-null nn">NN</td><td class="col-default">["all"]</td><td class="col-note">["all"] 또는 ["conservative","neutral","progressive"] 조합</td></tr>
+      <tr><td class="col-name">board_type</td><td class="col-type">VARCHAR(15)</td><td class="col-null nn">NN</td><td class="col-default">'general'</td><td class="col-note">general | debate | qna | poll | notice</td></tr>
+      <tr><td class="col-name">config</td><td class="col-type">JSONB</td><td class="col-null nn">NN</td><td class="col-default">{}</td><td class="col-note">GIN 인덱스 · 아래 상세 참조</td></tr>
+      <tr><td class="col-name">post_count</td><td class="col-type">INT</td><td class="col-null nn">NN</td><td class="col-default">0</td><td class="col-note">비정규화 카운터 (COUNT 쿼리 방지)</td></tr>
+      <tr><td class="col-name">sort_order</td><td class="col-type">SMALLINT</td><td class="col-null nn">NN</td><td class="col-default">0</td><td class="col-note">관리자 드래그 정렬</td></tr>
+      <tr><td class="col-name">is_active</td><td class="col-type">BOOLEAN</td><td class="col-null nn">NN</td><td class="col-default">TRUE</td><td class="col-note">FALSE = 비활성 (삭제 대신 soft)</td></tr>
+      <tr><td class="col-name"><span class="fk-icon">🔗</span> created_by</td><td class="col-type">BIGINT</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">FK → users(id) · 생성한 관리자</td></tr>
+      <tr><td class="col-name">created_at / updated_at / deleted_at</td><td class="col-type">TIMESTAMPTZ</td><td class="col-null">—</td><td class="col-default">NOW()</td><td class="col-note">Soft Delete</td></tr>
+    </tbody>
+  </table>
+  <div style="padding:12px 20px;background:#fffbeb;border-top:1px solid #fef3c7;font-size:12px;color:#92400e">
+    <strong>config JSONB 구조:</strong>
+    <code style="font-family:var(--mono);margin-left:8px">{ "allow_attachment": true, "max_daily_posts_per_user": null, "show_faction_badge": true, "require_manner_score_min": 0, "debate_format": null }</code>
+  </div>
+</div>
+
+<!-- posts -->
+<div class="table-spec">
+  <div class="table-spec-header h-p2">
+    <span class="table-name">posts</span>
+    <span class="erd-phase-badge badge-p2">Phase 2</span>
+    <span class="table-desc">게시물 · faction은 작성 당시 진영 스냅샷</span>
+  </div>
+  <table class="col-table">
+    <thead><tr><th>컬럼</th><th>타입</th><th>NULL</th><th>기본값</th><th>설명</th></tr></thead>
+    <tbody>
+      <tr><td class="col-name"><span class="pk-icon">🔑</span> id</td><td class="col-type">BIGSERIAL</td><td class="col-null nn">NN</td><td class="col-default">auto</td><td class="col-note">PK</td></tr>
+      <tr><td class="col-name"><span class="fk-icon">🔗</span> user_id</td><td class="col-type">BIGINT</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">FK → users(id) ON DELETE SET NULL · 탈퇴 시 글 보존</td></tr>
+      <tr><td class="col-name"><span class="fk-icon">🔗</span> board_id</td><td class="col-type">BIGINT</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">FK → boards(id) ON DELETE CASCADE</td></tr>
+      <tr><td class="col-name">faction</td><td class="col-type">VARCHAR(15)</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">⚠️ 작성 당시 진영 스냅샷 (users.political_type 변경과 무관)</td></tr>
+      <tr><td class="col-name">space</td><td class="col-type">VARCHAR(10)</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">azit | battle</td></tr>
+      <tr><td class="col-name">title</td><td class="col-type">VARCHAR(300)</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">FTS 인덱스 대상</td></tr>
+      <tr><td class="col-name">content</td><td class="col-type">TEXT</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">FTS 인덱스 대상</td></tr>
+      <tr><td class="col-name">content_type</td><td class="col-type">VARCHAR(10)</td><td class="col-null nn">NN</td><td class="col-default">'text'</td><td class="col-note">text | rich</td></tr>
+      <tr><td class="col-name">status</td><td class="col-type">VARCHAR(20)</td><td class="col-null nn">NN</td><td class="col-default">'published'</td><td class="col-note">published | hidden | deleted | pending_review</td></tr>
+      <tr><td class="col-name">view_count</td><td class="col-type">INT</td><td class="col-null nn">NN</td><td class="col-default">0</td><td class="col-note">비정규화 카운터</td></tr>
+      <tr><td class="col-name">comment_count</td><td class="col-type">INT</td><td class="col-null nn">NN</td><td class="col-default">0</td><td class="col-note">비정규화 카운터</td></tr>
+      <tr><td class="col-name">vote_up_count</td><td class="col-type">INT</td><td class="col-null nn">NN</td><td class="col-default">0</td><td class="col-note">비정규화 카운터</td></tr>
+      <tr><td class="col-name">vote_down_count</td><td class="col-type">INT</td><td class="col-null nn">NN</td><td class="col-default">0</td><td class="col-note">비정규화 카운터</td></tr>
+      <tr><td class="col-name">report_count</td><td class="col-type">INT</td><td class="col-null nn">NN</td><td class="col-default">0</td><td class="col-note">비정규화 카운터</td></tr>
+      <tr><td class="col-name">score_weight</td><td class="col-type">DECIMAL(5,2)</td><td class="col-null nn">NN</td><td class="col-default">1.00</td><td class="col-note">관리자 수동 보정값 (봇/어뷰징 감지 시)</td></tr>
+      <tr><td class="col-name">is_pinned</td><td class="col-type">BOOLEAN</td><td class="col-null nn">NN</td><td class="col-default">FALSE</td><td class="col-note">게시판 상단 고정</td></tr>
+      <tr><td class="col-name">pinned_until</td><td class="col-type">TIMESTAMPTZ</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">고정 만료일 (NULL=영구)</td></tr>
+      <tr><td class="col-name">created_at / updated_at / deleted_at</td><td class="col-type">TIMESTAMPTZ</td><td class="col-null">—</td><td class="col-default">NOW()</td><td class="col-note">Soft Delete</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- comments -->
+<div class="table-spec">
+  <div class="table-spec-header h-p2">
+    <span class="table-name">comments</span>
+    <span class="erd-phase-badge badge-p2">Phase 2</span>
+    <span class="table-desc">댓글/대댓글 · depth 최대 2단계</span>
+  </div>
+  <table class="col-table">
+    <thead><tr><th>컬럼</th><th>타입</th><th>NULL</th><th>기본값</th><th>설명</th></tr></thead>
+    <tbody>
+      <tr><td class="col-name"><span class="pk-icon">🔑</span> id</td><td class="col-type">BIGSERIAL</td><td class="col-null nn">NN</td><td class="col-default">auto</td><td class="col-note">PK</td></tr>
+      <tr><td class="col-name"><span class="fk-icon">🔗</span> post_id</td><td class="col-type">BIGINT</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">FK → posts(id) ON DELETE CASCADE</td></tr>
+      <tr><td class="col-name"><span class="fk-icon">🔗</span> user_id</td><td class="col-type">BIGINT</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">FK → users(id) ON DELETE SET NULL</td></tr>
+      <tr><td class="col-name"><span class="fk-icon">🔗</span> parent_id</td><td class="col-type">BIGINT</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">FK → comments(id) ON DELETE CASCADE · NULL이면 최상위 댓글</td></tr>
+      <tr><td class="col-name">faction</td><td class="col-type">VARCHAR(15)</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">작성 당시 진영 스냅샷</td></tr>
+      <tr><td class="col-name">content</td><td class="col-type">TEXT</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note"></td></tr>
+      <tr><td class="col-name">depth</td><td class="col-type">SMALLINT</td><td class="col-null nn">NN</td><td class="col-default">0</td><td class="col-note">0=댓글, 1=대댓글 (최대 1 제한)</td></tr>
+      <tr><td class="col-name">status</td><td class="col-type">VARCHAR(20)</td><td class="col-null nn">NN</td><td class="col-default">'published'</td><td class="col-note">published | hidden | deleted</td></tr>
+      <tr><td class="col-name">vote_up_count / vote_down_count / report_count</td><td class="col-type">INT</td><td class="col-null nn">NN</td><td class="col-default">0</td><td class="col-note">비정규화 카운터</td></tr>
+      <tr><td class="col-name">created_at / updated_at / deleted_at</td><td class="col-type">TIMESTAMPTZ</td><td class="col-null">—</td><td class="col-default">NOW()</td><td class="col-note">Soft Delete</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- votes -->
+<div class="table-spec">
+  <div class="table-spec-header h-p2">
+    <span class="table-name">votes</span>
+    <span class="erd-phase-badge badge-p2">Phase 2</span>
+    <span class="table-desc">추천/비추천 · Polymorphic (posts + comments)</span>
+  </div>
+  <table class="col-table">
+    <thead><tr><th>컬럼</th><th>타입</th><th>NULL</th><th>기본값</th><th>설명</th></tr></thead>
+    <tbody>
+      <tr><td class="col-name"><span class="pk-icon">🔑</span> id</td><td class="col-type">BIGSERIAL</td><td class="col-null nn">NN</td><td class="col-default">auto</td><td class="col-note">PK</td></tr>
+      <tr><td class="col-name">votable_type</td><td class="col-type">VARCHAR(10)</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">post | comment</td></tr>
+      <tr><td class="col-name">votable_id</td><td class="col-type">BIGINT</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">(votable_type, votable_id, user_id) UNIQUE</td></tr>
+      <tr><td class="col-name"><span class="fk-icon">🔗</span> user_id</td><td class="col-type">BIGINT</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">FK → users(id) ON DELETE CASCADE</td></tr>
+      <tr><td class="col-name">vote_type</td><td class="col-type">VARCHAR(5)</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">up | down</td></tr>
+      <tr><td class="col-name">created_at</td><td class="col-type">TIMESTAMPTZ</td><td class="col-null nn">NN</td><td class="col-default">NOW()</td><td class="col-note"></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- reports -->
+<div class="table-spec">
+  <div class="table-spec-header h-p2">
+    <span class="table-name">reports</span>
+    <span class="erd-phase-badge badge-p2">Phase 2</span>
+    <span class="table-desc">신고 · Polymorphic · 중복 신고 방지</span>
+  </div>
+  <table class="col-table">
+    <thead><tr><th>컬럼</th><th>타입</th><th>NULL</th><th>기본값</th><th>설명</th></tr></thead>
+    <tbody>
+      <tr><td class="col-name"><span class="pk-icon">🔑</span> id</td><td class="col-type">BIGSERIAL</td><td class="col-null nn">NN</td><td class="col-default">auto</td><td class="col-note">PK</td></tr>
+      <tr><td class="col-name">reportable_type</td><td class="col-type">VARCHAR(10)</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">post | comment</td></tr>
+      <tr><td class="col-name">reportable_id</td><td class="col-type">BIGINT</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">(reportable_type, reportable_id, reporter_id) UNIQUE</td></tr>
+      <tr><td class="col-name"><span class="fk-icon">🔗</span> reporter_id</td><td class="col-type">BIGINT</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">FK → users(id) ON DELETE SET NULL</td></tr>
+      <tr><td class="col-name">reason</td><td class="col-type">VARCHAR(30)</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">hate_speech | spam | false_info | obscenity | other</td></tr>
+      <tr><td class="col-name">detail</td><td class="col-type">TEXT</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">신고 상세 사유</td></tr>
+      <tr><td class="col-name">status</td><td class="col-type">VARCHAR(10)</td><td class="col-null nn">NN</td><td class="col-default">'pending'</td><td class="col-note">pending | resolved | dismissed</td></tr>
+      <tr><td class="col-name"><span class="fk-icon">🔗</span> handled_by</td><td class="col-type">BIGINT</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">FK → users(id) · 처리한 관리자</td></tr>
+      <tr><td class="col-name">handled_at / admin_note</td><td class="col-type">TIMESTAMPTZ / TEXT</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note"></td></tr>
+      <tr><td class="col-name">created_at</td><td class="col-type">TIMESTAMPTZ</td><td class="col-null nn">NN</td><td class="col-default">NOW()</td><td class="col-note"></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- factions_daily_stats -->
+<div class="table-spec">
+  <div class="table-spec-header h-both">
+    <span class="table-name">factions_daily_stats</span>
+    <span class="erd-phase-badge badge-both">공통</span>
+    <span class="table-desc">진영 일별 집계 · avg_score = raw_score ÷ active_user_count</span>
+  </div>
+  <table class="col-table">
+    <thead><tr><th>컬럼</th><th>타입</th><th>NULL</th><th>기본값</th><th>설명</th></tr></thead>
+    <tbody>
+      <tr><td class="col-name"><span class="pk-icon">🔑</span> id</td><td class="col-type">BIGSERIAL</td><td class="col-null nn">NN</td><td class="col-default">auto</td><td class="col-note">PK</td></tr>
+      <tr><td class="col-name">faction_type</td><td class="col-type">VARCHAR(15)</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">(faction_type, date) UNIQUE</td></tr>
+      <tr><td class="col-name">date</td><td class="col-type">DATE</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">집계 날짜</td></tr>
+      <tr><td class="col-name">post_count / comment_count</td><td class="col-type">INT</td><td class="col-null nn">NN</td><td class="col-default">0</td><td class="col-note">당일 해당 진영 활동량</td></tr>
+      <tr><td class="col-name">vote_up_count / vote_down_count</td><td class="col-type">INT</td><td class="col-null nn">NN</td><td class="col-default">0</td><td class="col-note"></td></tr>
+      <tr><td class="col-name">report_count</td><td class="col-type">INT</td><td class="col-null nn">NN</td><td class="col-default">0</td><td class="col-note">진영 점수에 감점 반영</td></tr>
+      <tr><td class="col-name">active_user_count</td><td class="col-type">INT</td><td class="col-null nn">NN</td><td class="col-default">0</td><td class="col-note">⭐ 평균 계산 분모 · 당일 1회 이상 활동한 사용자 수</td></tr>
+      <tr><td class="col-name">total_user_count</td><td class="col-type">INT</td><td class="col-null nn">NN</td><td class="col-default">0</td><td class="col-note">전체 가입 사용자 수 스냅샷</td></tr>
+      <tr><td class="col-name">raw_score</td><td class="col-type">NUMERIC(10,2)</td><td class="col-null nn">NN</td><td class="col-default">0</td><td class="col-note">가중치 적용 합계 (참고용)</td></tr>
+      <tr><td class="col-name">avg_score</td><td class="col-type">NUMERIC(10,2)</td><td class="col-null nn">NN</td><td class="col-default">0</td><td class="col-note">⭐ 공식 지표 = raw_score ÷ max(active_user_count,1)</td></tr>
+      <tr><td class="col-name">created_at / updated_at</td><td class="col-type">TIMESTAMPTZ</td><td class="col-null nn">NN</td><td class="col-default">NOW()</td><td class="col-note">UPSERT로 갱신</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- admin_action_logs -->
+<div class="table-spec">
+  <div class="table-spec-header h-both">
+    <span class="table-name">admin_action_logs</span>
+    <span class="erd-phase-badge badge-both">공통</span>
+    <span class="table-desc">관리자 행위 감사 로그 · 불변(수정/삭제 불가)</span>
+  </div>
+  <table class="col-table">
+    <thead><tr><th>컬럼</th><th>타입</th><th>NULL</th><th>기본값</th><th>설명</th></tr></thead>
+    <tbody>
+      <tr><td class="col-name"><span class="pk-icon">🔑</span> id</td><td class="col-type">BIGSERIAL</td><td class="col-null nn">NN</td><td class="col-default">auto</td><td class="col-note">PK</td></tr>
+      <tr><td class="col-name"><span class="fk-icon">🔗</span> admin_id</td><td class="col-type">BIGINT</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">FK → users(id)</td></tr>
+      <tr><td class="col-name">action</td><td class="col-type">VARCHAR(80)</td><td class="col-null nn">NN</td><td class="col-default">—</td><td class="col-note">ban_user | delete_post | update_weight | create_board 등</td></tr>
+      <tr><td class="col-name">target_type</td><td class="col-type">VARCHAR(30)</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">user | post | comment | board | score_weight</td></tr>
+      <tr><td class="col-name">target_id</td><td class="col-type">BIGINT</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">대상 레코드 ID</td></tr>
+      <tr><td class="col-name">detail</td><td class="col-type">JSONB</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">{before: {...}, after: {...}} 변경 전후값</td></tr>
+      <tr><td class="col-name">ip_address</td><td class="col-type">INET</td><td class="col-null">NULL</td><td class="col-default">NULL</td><td class="col-note">관리자 접속 IP</td></tr>
+      <tr><td class="col-name">created_at</td><td class="col-type">TIMESTAMPTZ</td><td class="col-null nn">NN</td><td class="col-default">NOW()</td><td class="col-note">불변 · updated_at 없음</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ④ 인덱스 -->
+<div class="section-title">🔍 인덱스 설계</div>
+<p class="section-sub">성능 최적화를 위한 인덱스 목록입니다. UNIQUE 제약은 별도 표기합니다.</p>
+
+<table class="idx-table">
+  <thead>
+    <tr><th>테이블</th><th>인덱스 이름</th><th>컬럼</th><th>종류</th><th>목적</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>users</td><td class="idx-name">users_email_unique</td><td>email</td><td>UNIQUE</td><td>이메일 중복 가입 방지</td></tr>
+    <tr><td>users</td><td class="idx-name">users_nickname_unique</td><td>nickname</td><td>UNIQUE (부분)</td><td>WHERE nickname IS NOT NULL</td></tr>
+    <tr><td>users</td><td class="idx-name">idx_users_political_type</td><td>political_type</td><td>BTREE</td><td>진영별 사용자 수 집계</td></tr>
+    <tr><td>users</td><td class="idx-name">idx_users_status</td><td>status, deleted_at</td><td>BTREE</td><td>활성 사용자 필터링</td></tr>
+    <tr><td>social_accounts</td><td class="idx-name">social_accounts_provider_unique</td><td>provider, provider_id</td><td>UNIQUE</td><td>소셜 중복 가입 방지 (핵심)</td></tr>
+    <tr><td>social_accounts</td><td class="idx-name">idx_social_accounts_user</td><td>user_id</td><td>BTREE</td><td>사용자의 소셜 계정 조회</td></tr>
+    <tr><td>political_tests</td><td class="idx-name">idx_political_tests_options</td><td>options</td><td>GIN</td><td>JSONB 내부 키 검색</td></tr>
+    <tr><td>political_test_sessions</td><td class="idx-name">idx_test_sessions_user_current</td><td>user_id, is_current</td><td>BTREE</td><td>현재 유효 테스트 빠른 조회</td></tr>
+    <tr><td>boards</td><td class="idx-name">boards_slug_unique</td><td>slug</td><td>UNIQUE</td><td>URL 라우팅</td></tr>
+    <tr><td>boards</td><td class="idx-name">idx_boards_space_active</td><td>space, is_active, sort_order</td><td>BTREE</td><td>GNB 게시판 목록 조회</td></tr>
+    <tr><td>boards</td><td class="idx-name">idx_boards_config</td><td>config</td><td>GIN</td><td>JSONB 설정 검색</td></tr>
+    <tr><td>posts</td><td class="idx-name">idx_posts_board_status_created</td><td>board_id, status, created_at DESC</td><td>BTREE</td><td>게시판별 최신글 목록 (핵심 쿼리)</td></tr>
+    <tr><td>posts</td><td class="idx-name">idx_posts_faction_created</td><td>faction, created_at DESC</td><td>BTREE</td><td>진영별 게시물 집계</td></tr>
+    <tr><td>posts</td><td class="idx-name">idx_posts_user</td><td>user_id, created_at DESC</td><td>BTREE</td><td>내 게시물 목록</td></tr>
+    <tr><td>posts</td><td class="idx-name">idx_posts_pinned</td><td>board_id, is_pinned</td><td>BTREE (부분)</td><td>WHERE is_pinned = TRUE</td></tr>
+    <tr><td>posts</td><td class="idx-name">idx_posts_fts</td><td>title, content</td><td>GIN (tsvector)</td><td>전문 검색</td></tr>
+    <tr><td>comments</td><td class="idx-name">idx_comments_post_status</td><td>post_id, status, created_at</td><td>BTREE</td><td>게시물 댓글 목록</td></tr>
+    <tr><td>comments</td><td class="idx-name">idx_comments_parent</td><td>parent_id</td><td>BTREE</td><td>대댓글 조회</td></tr>
+    <tr><td>votes</td><td class="idx-name">votes_votable_user_unique</td><td>votable_type, votable_id, user_id</td><td>UNIQUE</td><td>중복 투표 방지</td></tr>
+    <tr><td>votes</td><td class="idx-name">idx_votes_votable</td><td>votable_type, votable_id</td><td>BTREE</td><td>대상별 투표 수 집계</td></tr>
+    <tr><td>reports</td><td class="idx-name">reports_unique</td><td>reportable_type, reportable_id, reporter_id</td><td>UNIQUE</td><td>중복 신고 방지</td></tr>
+    <tr><td>reports</td><td class="idx-name">idx_reports_status</td><td>status, created_at DESC</td><td>BTREE</td><td>관리자 신고 처리 큐</td></tr>
+    <tr><td>factions_daily_stats</td><td class="idx-name">factions_daily_unique</td><td>faction_type, date</td><td>UNIQUE</td><td>UPSERT 기준키</td></tr>
+    <tr><td>factions_daily_stats</td><td class="idx-name">idx_factions_daily_date</td><td>date DESC, faction_type</td><td>BTREE</td><td>최근 통계 조회</td></tr>
+    <tr><td>admin_action_logs</td><td class="idx-name">idx_admin_logs_admin</td><td>admin_id, created_at DESC</td><td>BTREE</td><td>관리자별 활동 이력</td></tr>
+    <tr><td>admin_action_logs</td><td class="idx-name">idx_admin_logs_target</td><td>target_type, target_id</td><td>BTREE</td><td>대상별 관리 이력</td></tr>
+  </tbody>
+</table>
+
+<!-- ⑤ 마이그레이션 순서 -->
+<div class="section-title">🔢 Laravel 마이그레이션 실행 순서</div>
+<p class="section-sub">외래키 의존성 기준으로 정렬된 실행 순서입니다.</p>
+
+<div class="migration-list">
+  <div class="migration-item"><div class="migration-num p1">1</div><div><div class="migration-filename">create_users_table</div><div class="migration-desc">Phase 1 · 가장 먼저 (다른 모든 테이블이 의존)</div></div></div>
+  <div class="migration-item"><div class="migration-num p1">2</div><div><div class="migration-filename">create_social_accounts_table</div><div class="migration-desc">Phase 1 · users 의존</div></div></div>
+  <div class="migration-item"><div class="migration-num p1">3</div><div><div class="migration-filename">create_political_tests_table</div><div class="migration-desc">Phase 1 · 독립 테이블</div></div></div>
+  <div class="migration-item"><div class="migration-num p1">4</div><div><div class="migration-filename">create_political_test_sessions_table</div><div class="migration-desc">Phase 1 · users, political_tests 의존</div></div></div>
+  <div class="migration-item"><div class="migration-num both">5</div><div><div class="migration-filename">create_score_weights_table</div><div class="migration-desc">공통 · 독립 + 시드 데이터 삽입</div></div></div>
+  <div class="migration-item"><div class="migration-num p2">6</div><div><div class="migration-filename">create_boards_table</div><div class="migration-desc">Phase 2 · users(created_by) 의존</div></div></div>
+  <div class="migration-item"><div class="migration-num p2">7</div><div><div class="migration-filename">create_posts_table</div><div class="migration-desc">Phase 2 · users, boards 의존</div></div></div>
+  <div class="migration-item"><div class="migration-num p2">8</div><div><div class="migration-filename">create_comments_table</div><div class="migration-desc">Phase 2 · posts, users 의존 + self FK</div></div></div>
+  <div class="migration-item"><div class="migration-num p2">9</div><div><div class="migration-filename">create_votes_table</div><div class="migration-desc">Phase 2 · users 의존 (Polymorphic)</div></div></div>
+  <div class="migration-item"><div class="migration-num p2">10</div><div><div class="migration-filename">create_reports_table</div><div class="migration-desc">Phase 2 · users 의존 (Polymorphic)</div></div></div>
+  <div class="migration-item"><div class="migration-num p2">11</div><div><div class="migration-filename">create_polls_table</div><div class="migration-desc">Phase 2 · boards, users 의존</div></div></div>
+  <div class="migration-item"><div class="migration-num p2">12</div><div><div class="migration-filename">create_poll_votes_table</div><div class="migration-desc">Phase 2 · polls, users 의존</div></div></div>
+  <div class="migration-item"><div class="migration-num both">13</div><div><div class="migration-filename">create_factions_daily_stats_table</div><div class="migration-desc">공통 · 독립 테이블</div></div></div>
+  <div class="migration-item"><div class="migration-num both">14</div><div><div class="migration-filename">create_factions_monthly_stats_table</div><div class="migration-desc">공통 · 독립 테이블</div></div></div>
+  <div class="migration-item"><div class="migration-num both">15</div><div><div class="migration-filename">create_factions_yearly_stats_table</div><div class="migration-desc">공통 · 독립 테이블</div></div></div>
+  <div class="migration-item"><div class="migration-num both">16</div><div><div class="migration-filename">create_admin_action_logs_table</div><div class="migration-desc">공통 · users 의존</div></div></div>
+</div>
+
+<!-- ⑥ 시드 데이터 -->
+<div class="section-title">🌱 필수 시드 데이터</div>
+<p class="section-sub">마이그레이션 직후 삽입해야 하는 초기 데이터입니다.</p>
+
+<p style="font-size:13px;font-weight:600;margin-bottom:8px">score_weights 초기값</p>
+<table class="seed-table">
+  <thead><tr><th>key</th><th>label</th><th>value</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr><td>post</td><td>게시물 작성</td><td>3.00</td><td>진영 점수에 가장 큰 기여</td></tr>
+    <tr><td>comment</td><td>댓글 작성</td><td>1.00</td><td></td></tr>
+    <tr><td>vote_up</td><td>추천 획득</td><td>2.00</td><td>타 진영 추천도 포함</td></tr>
+    <tr><td>vote_down</td><td>비추천 획득</td><td>-0.50</td><td>음수</td></tr>
+    <tr><td>report</td><td>신고 처리 확정</td><td>-5.00</td><td>음수 · resolved 상태만 반영</td></tr>
+  </tbody>
+</table>
+
+<!-- ⑦ 설계 결정 노트 -->
+<div class="section-title">💡 주요 설계 결정 노트</div>
+<div class="note-grid">
+  <div class="note-card"><h4>📸 faction 스냅샷 저장 (posts, comments)</h4><p>사용자는 재테스트로 진영이 바뀔 수 있습니다. 게시물/댓글에 작성 당시의 진영을 별도 저장하지 않으면 이력이 왜곡됩니다. users.political_type과 무관하게 posts.faction으로 집계합니다.</p></div>
+  <div class="note-card"><h4>🔢 비정규화 카운터 (vote_up_count 등)</h4><p>게시물 목록 조회 시 매번 COUNT(*) 서브쿼리를 실행하면 대용량에서 느립니다. 추천/댓글 발생 시 이벤트로 카운터를 +1/-1 업데이트해 목록 조회는 단순 SELECT로 처리합니다.</p></div>
+  <div class="note-card"><h4>◇ Polymorphic 관계 (votes, reports)</h4><p>게시물과 댓글 모두 동일한 추천/신고 로직을 공유합니다. votable_type + votable_id 조합으로 두 테이블을 하나의 votes 테이블로 통합 관리합니다. Laravel의 morphTo 관계 활용.</p></div>
+  <div class="note-card"><h4>📊 avg_score = raw ÷ active_user</h4><p>진영 사용자 편중 문제를 방지합니다. active_user_count는 당일 게시물/댓글/투표 행위를 1회 이상 한 사용자만 카운트합니다. max(count, 1)로 0 나눔을 방지합니다.</p></div>
+  <div class="note-card"><h4>🗂️ JSONB 활용 전략</h4><p>political_tests.options(문항 보기), boards.config(게시판 설정), admin_action_logs.detail(변경 전후)에 JSONB를 적용합니다. GIN 인덱스를 걸어 내부 키 검색도 빠르게 처리합니다.</p></div>
+  <div class="note-card"><h4>🗑️ Soft Delete 적용 범위</h4><p>users, boards, posts, comments에 deleted_at 컬럼을 추가합니다. 삭제된 게시물의 댓글/신고 이력 보존, 관리자 복구 가능성, 법적 증거 보전을 위해 물리 삭제 대신 소프트 삭제를 사용합니다.</p></div>
+</div>
+
+</div><!-- /wrap -->
+</body>
+</html>

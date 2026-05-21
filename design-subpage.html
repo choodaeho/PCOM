@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>폴릿(POLIT) — 게시물 목록 시안</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --blue:   #378ADD;
+    --purple: #7F77DD;
+    --red:    #E24B4A;
+    --dark:   #0f172a;
+    --dark2:  #1e293b;
+    --text:   #1a1a2e;
+    --sub:    #64748b;
+    --border: #e2e8f0;
+    --bg:     #f1f5f9;
+    --white:  #ffffff;
+  }
+
+  body {
+    font-family: 'Noto Sans KR', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  /* ── SCORE TICKER ─────────────────────────────── */
+  .score-ticker {
+    background: var(--dark);
+    padding: 7px 0;
+  }
+  .score-ticker-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    justify-content: center;
+  }
+  .ticker-label { font-size: 11px; color: #94a3b8; letter-spacing: 1px; text-transform: uppercase; margin-right: 16px; white-space: nowrap; }
+  .ticker-live { display: inline-flex; align-items: center; gap: 5px; margin-right: 20px; }
+  .live-dot { width: 7px; height: 7px; background: #22c55e; border-radius: 50%; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
+  .live-text { font-size: 11px; color: #22c55e; font-weight: 600; }
+  .score-items { display: flex; gap: 28px; }
+  .score-item { display: flex; align-items: center; gap: 7px; }
+  .score-dot { width: 9px; height: 9px; border-radius: 50%; }
+  .score-name { font-size: 12px; color: #94a3b8; }
+  .score-val { font-size: 14px; font-weight: 700; color: white; }
+  .score-delta { font-size: 11px; font-weight: 500; }
+  .up { color: #22c55e; }
+  .dn { color: #f87171; }
+  .eq { color: #94a3b8; }
+  .score-divider { width: 1px; height: 14px; background: #334155; }
+
+  /* ── HEADER ───────────────────────────────────── */
+  header {
+    background: var(--dark2);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.3);
+  }
+  .header-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 24px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+  }
+  .logo-wrap svg { height: 32px; width: auto; }
+
+  nav { display: flex; gap: 2px; }
+  .nav-link {
+    padding: 5px 12px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #94a3b8;
+    text-decoration: none;
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+  .nav-link:hover { background: rgba(255,255,255,0.08); color: white; }
+  .nav-link.battle { background: rgba(226,75,74,0.15); color: var(--red); border: 1px solid rgba(226,75,74,0.25); }
+  .nav-link.active { background: rgba(255,255,255,0.1); color: white; }
+
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+  /* 검색바 */
+  .search-wrap {
+    display: flex;
+    align-items: center;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 0 12px;
+    height: 34px;
+    gap: 8px;
+  }
+  .search-wrap input {
+    background: none;
+    border: none;
+    outline: none;
+    color: white;
+    font-size: 13px;
+    width: 160px;
+    font-family: inherit;
+  }
+  .search-wrap input::placeholder { color: #475569; }
+  .search-icon { color: #475569; font-size: 14px; }
+
+  .user-avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--purple), var(--blue));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: white;
+    cursor: pointer;
+  }
+  .user-info { font-size: 12px; color: #94a3b8; }
+  .user-faction {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 600;
+    background: rgba(226,75,74,0.15);
+    color: var(--red);
+    border: 1px solid rgba(226,75,74,0.3);
+  }
+
+  /* ── BOARD NAV TABS ───────────────────────────── */
+  .board-nav {
+    background: white;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 60px;
+    z-index: 90;
+  }
+  .board-nav-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    overflow-x: auto;
+  }
+  .board-nav-item {
+    padding: 14px 18px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--sub);
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .board-nav-item:hover { color: var(--text); }
+  .board-nav-item.active { color: var(--red); border-bottom-color: var(--red); font-weight: 600; }
+
+  /* ── MAIN LAYOUT ──────────────────────────────── */
+  .main-wrap {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 24px;
+    display: grid;
+    grid-template-columns: 220px 1fr 280px;
+    gap: 20px;
+    align-items: start;
+  }
+
+  /* ── LEFT SIDEBAR ─────────────────────────────── */
+  .sidebar-left { position: sticky; top: 110px; }
+  .sidebar-card {
+    background: white;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .sidebar-header {
+    padding: 14px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--sub);
+    border-bottom: 1px solid var(--border);
+    background: #f8fafc;
+  }
+  .board-list { padding: 8px 0; }
+  .board-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 16px;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.15s;
+    border-radius: 0;
+    gap: 8px;
+  }
+  .board-item:hover { background: #f8fafc; }
+  .board-item.active { background: #eef3ff; color: var(--purple); font-weight: 600; }
+  .board-item-icon { width: 22px; height: 22px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+  .board-count { font-size: 11px; color: #94a3b8; background: #f1f5f9; padding: 1px 7px; border-radius: 100px; }
+  .board-count-hot { background: rgba(226,75,74,0.1); color: var(--red); }
+
+  .sidebar-divider { padding: 10px 16px 4px; font-size: 11px; font-weight: 600; color: #94a3b8; letter-spacing: 1px; text-transform: uppercase; }
+
+  .faction-board-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    font-size: 13px;
+    cursor: pointer;
+    gap: 9px;
+    transition: background 0.15s;
+  }
+  .faction-board-item:hover { background: #f8fafc; }
+  .faction-dot-sm { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .locked-badge { font-size: 10px; color: #94a3b8; margin-left: auto; }
+
+  /* ── POST LIST ────────────────────────────────── */
+  .post-list-wrap {}
+
+  .post-list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .board-title-area { display: flex; align-items: center; gap: 10px; }
+  .board-title { font-size: 20px; font-weight: 700; }
+  .board-badge {
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 600;
+    background: rgba(226,75,74,0.1);
+    color: var(--red);
+    border: 1px solid rgba(226,75,74,0.25);
+  }
+  .post-count-info { font-size: 13px; color: var(--sub); }
+
+  .post-list-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .sort-select {
+    padding: 7px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: white;
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-write {
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: white;
+    background: var(--red);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-write:hover { background: #d43f3e; }
+
+  /* 탭 필터 */
+  .filter-tabs {
+    display: flex;
+    gap: 4px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 14px;
+  }
+  .filter-tab {
+    flex: 1;
+    padding: 7px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--sub);
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .filter-tab.active { background: var(--dark2); color: white; }
+
+  /* 게시물 카드 */
+  .post-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .post-card:hover { border-color: #c7d2fe; box-shadow: 0 4px 16px rgba(0,0,0,0.06); transform: translateY(-1px); }
+  .post-card.pinned { border-color: rgba(127,119,221,0.4); background: #fdfcff; }
+  .post-card.hot { border-color: rgba(226,75,74,0.3); }
+
+  .post-card-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .faction-badge {
+    flex-shrink: 0;
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+  }
+  .fb-blue { background: rgba(55,138,221,0.12); color: var(--blue); border: 1px solid rgba(55,138,221,0.3); }
+  .fb-purple { background: rgba(127,119,221,0.12); color: var(--purple); border: 1px solid rgba(127,119,221,0.3); }
+  .fb-red { background: rgba(226,75,74,0.12); color: var(--red); border: 1px solid rgba(226,75,74,0.3); }
+
+  .post-title { font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.5; }
+  .post-title:hover { color: var(--purple); }
+  .post-preview { font-size: 13px; color: var(--sub); line-height: 1.6; margin-top: 4px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+  .pinned-icon { position: absolute; top: 14px; right: 16px; font-size: 13px; color: var(--purple); }
+  .hot-icon { position: absolute; top: 14px; right: 16px; font-size: 13px; color: var(--red); }
+
+  .post-meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 12px;
+    color: #94a3b8;
+  }
+  .post-meta-item { display: flex; align-items: center; gap: 4px; }
+  .post-meta-author { font-weight: 500; color: var(--sub); }
+  .post-meta-sep { color: #cbd5e1; }
+
+  .post-stats {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-left: auto;
+  }
+  .stat-chip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #94a3b8;
+  }
+  .stat-chip.up-votes { color: var(--blue); }
+  .stat-chip.comments { color: var(--purple); }
+
+  /* 페이지네이션 */
+  .pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    margin-top: 24px;
+    padding-bottom: 40px;
+  }
+  .page-btn {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: white;
+    font-size: 13px;
+    color: var(--sub);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .page-btn:hover { border-color: var(--purple); color: var(--purple); }
+  .page-btn.active { background: var(--purple); color: white; border-color: var(--purple); }
+  .page-btn.prev-next { width: auto; padding: 0 12px; font-size: 12px; }
+
+  /* ── RIGHT SIDEBAR ────────────────────────────── */
+  .sidebar-right { position: sticky; top: 110px; }
+
+  /* 실시간 점수 위젯 */
+  .score-widget { background: white; border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 16px; }
+  .widget-title { font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--sub); margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+  .score-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .score-row:last-child { margin-bottom: 0; }
+  .score-row-label { font-size: 13px; font-weight: 500; color: var(--text); width: 30px; }
+  .score-bar-wrap { flex: 1; height: 8px; background: #f1f5f9; border-radius: 100px; overflow: hidden; }
+  .score-bar-fill { height: 100%; border-radius: 100px; transition: width 1s ease; }
+  .score-row-num { font-size: 14px; font-weight: 700; min-width: 36px; text-align: right; }
+  .score-row-delta { font-size: 11px; width: 36px; text-align: right; }
+
+  .score-updated { font-size: 11px; color: #94a3b8; text-align: right; margin-top: 10px; }
+
+  /* 기간 통계 토글 */
+  .period-tabs { display: flex; gap: 3px; margin-bottom: 12px; }
+  .period-tab { flex: 1; padding: 5px; border-radius: 6px; font-size: 11px; font-weight: 500; color: var(--sub); text-align: center; cursor: pointer; background: #f8fafc; border: 1px solid var(--border); }
+  .period-tab.active { background: var(--dark2); color: white; border-color: var(--dark2); }
+
+  /* 실시간 투표 */
+  .poll-widget { background: white; border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 16px; }
+  .poll-question { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.5; margin-bottom: 14px; }
+  .poll-row { margin-bottom: 10px; }
+  .poll-row-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+  .poll-faction-name { font-weight: 500; }
+  .poll-pct { font-weight: 600; }
+  .poll-bar-wrap { height: 6px; background: #f1f5f9; border-radius: 100px; overflow: hidden; }
+  .poll-bar-fill { height: 100%; border-radius: 100px; }
+  .poll-total { font-size: 11px; color: #94a3b8; margin-top: 10px; text-align: right; }
+  .btn-poll { width: 100%; padding: 9px; border-radius: 8px; border: 1px solid var(--border); background: #f8fafc; font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; margin-top: 12px; transition: all 0.2s; }
+  .btn-poll:hover { background: var(--dark2); color: white; border-color: var(--dark2); }
+
+  /* 인기 게시물 */
+  .hot-widget { background: white; border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+  .hot-item { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; }
+  .hot-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .hot-rank { font-size: 16px; font-weight: 800; color: #e2e8f0; min-width: 24px; }
+  .hot-rank.top { color: var(--red); }
+  .hot-content {}
+  .hot-title { font-size: 13px; font-weight: 500; color: var(--text); line-height: 1.4; margin-bottom: 3px; }
+  .hot-title:hover { color: var(--purple); }
+  .hot-meta { font-size: 11px; color: #94a3b8; display: flex; gap: 8px; }
+  .hot-faction-sm { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 100px; }
+
+  /* 알림 배너 (선거기간 예시) */
+  .notice-banner {
+    background: rgba(127,119,221,0.08);
+    border: 1px solid rgba(127,119,221,0.25);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 12px;
+    color: var(--purple);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .notice-icon { font-size: 14px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<!-- ① 실시간 점수 티커 -->
+<div class="score-ticker">
+  <div class="score-ticker-inner">
+    <span class="ticker-label">실시간 진영 점수</span>
+    <span class="ticker-live"><span class="live-dot"></span><span class="live-text">LIVE</span></span>
+    <div class="score-items">
+      <div class="score-item">
+        <div class="score-dot" style="background:var(--blue)"></div>
+        <span class="score-name">보수</span>
+        <span class="score-val">42.7</span>
+        <span class="score-delta up">▲ 2.1</span>
+      </div>
+      <div class="score-divider"></div>
+      <div class="score-item">
+        <div class="score-dot" style="background:var(--purple)"></div>
+        <span class="score-name">중도</span>
+        <span class="score-val">38.1</span>
+        <span class="score-delta eq">— 0.0</span>
+      </div>
+      <div class="score-divider"></div>
+      <div class="score-item">
+        <div class="score-dot" style="background:var(--red)"></div>
+        <span class="score-name">진보</span>
+        <span class="score-val">51.3</span>
+        <span class="score-delta dn">▼ 0.8</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ② 헤더 -->
+<header>
+  <div class="header-inner">
+    <div class="logo-wrap">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 164 60" style="height:42px;width:auto;display:block">
+        <defs><clipPath id="s1"><rect x="0" y="2" width="50" height="44" rx="10"/></clipPath></defs>
+        <rect x="0"  y="2" width="17" height="44" fill="#E24B4A" clip-path="url(#s1)"/>
+        <rect x="17" y="2" width="16" height="44" fill="#7F77DD" clip-path="url(#s1)"/>
+        <rect x="33" y="2" width="17" height="44" fill="#378ADD" clip-path="url(#s1)"/>
+        <line x1="17" y1="2" x2="17" y2="46" stroke="white" stroke-opacity="0.22" stroke-width="1" clip-path="url(#s1)"/>
+        <line x1="33" y1="2" x2="33" y2="46" stroke="white" stroke-opacity="0.22" stroke-width="1" clip-path="url(#s1)"/>
+        <rect x="0" y="2" width="50" height="44" rx="10" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+        <text x="25" y="24" text-anchor="middle" dominant-baseline="central" font-size="26" font-weight="700" fill="white" font-family="system-ui,-apple-system,sans-serif">P</text>
+        <path d="M19,46 L25,57 L31,46 Z" fill="#7F77DD"/>
+        <line x1="62" y1="8" x2="62" y2="55" stroke="rgba(255,255,255,0.15)" stroke-width="0.8"/>
+        <text x="71" y="27" font-size="21" font-weight="500" fill="white" font-family="system-ui,-apple-system,sans-serif" letter-spacing="3">POLIT</text>
+        <text x="72" y="47" font-size="11" font-weight="400" fill="#64748b" font-family="system-ui,-apple-system,sans-serif" letter-spacing="2">폴릿</text>
+      </svg>
+    </div>
+    <nav>
+      <a class="nav-link" href="#">🏠 홈</a>
+      <a class="nav-link" href="#">🏡 아지트</a>
+      <a class="nav-link battle active" href="#">⚔️ 전쟁터</a>
+      <a class="nav-link" href="#">📊 통계</a>
+    </nav>
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" placeholder="게시물 검색...">
+    </div>
+    <div class="header-right">
+      <div style="text-align:right">
+        <div class="user-info">진보 회원 <span class="user-faction">🔴 진보</span></div>
+      </div>
+      <div class="user-avatar">홍</div>
+    </div>
+  </div>
+</header>
+
+<!-- ③ 게시판 탭 네비게이션 -->
+<div class="board-nav">
+  <div class="board-nav-inner">
+    <div class="board-nav-item">전체 게시판</div>
+    <div class="board-nav-item active">⚔️ 정치 토론</div>
+    <div class="board-nav-item">📰 시사 이슈</div>
+    <div class="board-nav-item">💬 자유 토론</div>
+    <div class="board-nav-item">🗳️ 투표·설문</div>
+    <div class="board-nav-item">📢 Q&A</div>
+    <div class="board-nav-item" style="margin-left:auto;color:#94a3b8;font-size:12px;">전쟁터 전용</div>
+  </div>
+</div>
+
+<!-- ④ 메인 컨텐츠 -->
+<div class="main-wrap">
+
+  <!-- 왼쪽 사이드바 -->
+  <aside class="sidebar-left">
+    <div class="sidebar-card">
+      <div class="sidebar-header">⚔️ 전쟁터</div>
+      <div class="board-list">
+        <div class="board-item">
+          <div class="board-item-icon">📋</div>
+          전체보기
+          <span class="board-count board-count-hot">847</span>
+        </div>
+        <div class="board-item active">
+          <div class="board-item-icon">🗣️</div>
+          정치 토론
+          <span class="board-count">312</span>
+        </div>
+        <div class="board-item">
+          <div class="board-item-icon">📰</div>
+          시사 이슈
+          <span class="board-count">198</span>
+        </div>
+        <div class="board-item">
+          <div class="board-item-icon">💬</div>
+          자유 토론
+          <span class="board-count">143</span>
+        </div>
+        <div class="board-item">
+          <div class="board-item-icon">🗳️</div>
+          투표·설문
+          <span class="board-count">67</span>
+        </div>
+        <div class="board-item">
+          <div class="board-item-icon">❓</div>
+          Q&A
+          <span class="board-count">42</span>
+        </div>
+      </div>
+
+      <div class="sidebar-divider">아지트</div>
+      <div class="faction-board-item">
+        <div class="faction-dot-sm" style="background:var(--blue)"></div>
+        <span style="font-size:13px;color:var(--sub)">보수 아지트</span>
+        <span class="locked-badge">🔒</span>
+      </div>
+      <div class="faction-board-item" style="margin-bottom:4px">
+        <div class="faction-dot-sm" style="background:var(--purple)"></div>
+        <span style="font-size:13px;color:var(--sub)">중도 아지트</span>
+        <span class="locked-badge">🔒</span>
+      </div>
+      <div class="faction-board-item" style="margin-bottom:8px">
+        <div class="faction-dot-sm" style="background:var(--red)"></div>
+        <span style="font-size:13px;color:var(--red);font-weight:600">진보 아지트</span>
+        <span style="font-size:10px;color:var(--red);margin-left:auto">입장 ›</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- 게시물 목록 -->
+  <main class="post-list-wrap">
+    <!-- 헤더 -->
+    <div class="post-list-header">
+      <div class="board-title-area">
+        <h1 class="board-title">정치 토론</h1>
+        <span class="board-badge">전쟁터</span>
+        <span class="post-count-info">총 312개 게시물</span>
+      </div>
+      <div class="post-list-actions">
+        <select class="sort-select">
+          <option>최신순</option>
+          <option>추천순</option>
+          <option>댓글순</option>
+          <option>조회순</option>
+        </select>
+        <button class="btn-write">✏️ 글쓰기</button>
+      </div>
+    </div>
+
+    <!-- 필터 탭 -->
+    <div class="filter-tabs">
+      <div class="filter-tab active">전체</div>
+      <div class="filter-tab" style="color:var(--blue)">🔵 보수</div>
+      <div class="filter-tab" style="color:var(--purple)">🟣 중도</div>
+      <div class="filter-tab" style="color:var(--red)">🔴 진보</div>
+    </div>
+
+    <!-- 공지 (고정) -->
+    <div class="post-card pinned">
+      <span class="pinned-icon">📌</span>
+      <div class="post-card-top">
+        <span class="faction-badge" style="background:rgba(127,119,221,0.12);color:var(--purple);border:1px solid rgba(127,119,221,0.3)">관리자</span>
+        <div>
+          <div class="post-title">[공지] 전쟁터 토론 규칙 및 매너 점수 안내</div>
+          <div class="post-preview">건전한 토론 문화를 위해 상호 존중을 지켜주세요. 욕설 및 혐오 표현 사용 시 매너 점수가 차감됩니다.</div>
+        </div>
+      </div>
+      <div class="post-meta">
+        <span class="post-meta-item"><span class="post-meta-author">운영팀</span></span>
+        <span class="post-meta-sep">·</span>
+        <span class="post-meta-item">2026.05.18</span>
+        <div class="post-stats">
+          <span class="stat-chip">👁 4,281</span>
+          <span class="stat-chip comments">💬 12</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 핫 게시물 -->
+    <div class="post-card hot">
+      <span class="hot-icon">🔥</span>
+      <div class="post-card-top">
+        <span class="faction-badge fb-red">🔴 진보</span>
+        <div>
+          <div class="post-title">AI 기본소득 도입, 진짜로 실현 가능한 이야기인가요?</div>
+          <div class="post-preview">최근 AI 발전으로 인한 일자리 대체 문제가 심각해지고 있습니다. 이에 대한 해결책으로 AI 기본소득을 주장하는 목소리가 커지고 있는데, 과연 재원 마련은 어떻게 할 것인지...</div>
+        </div>
+      </div>
+      <div class="post-meta">
+        <span class="post-meta-item"><span class="post-meta-author">민주시민K</span></span>
+        <span class="post-meta-sep">·</span>
+        <span class="post-meta-item">12분 전</span>
+        <div class="post-stats">
+          <span class="stat-chip up-votes">👍 128</span>
+          <span class="stat-chip">👎 34</span>
+          <span class="stat-chip comments">💬 97</span>
+          <span class="stat-chip">👁 3,421</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 일반 게시물들 -->
+    <div class="post-card">
+      <div class="post-card-top">
+        <span class="faction-badge fb-blue">🔵 보수</span>
+        <div>
+          <div class="post-title">감세 정책이 경제 성장에 미치는 실증적 효과 — 해외 사례 분석</div>
+          <div class="post-preview">레이거노믹스부터 트럼프 감세, 영국의 최근 사례까지. 실제 GDP 성장률 데이터를 바탕으로 감세 정책의 효과를 분석해봤습니다.</div>
+        </div>
+      </div>
+      <div class="post-meta">
+        <span class="post-meta-item"><span class="post-meta-author">자유시장론자</span></span>
+        <span class="post-meta-sep">·</span>
+        <span class="post-meta-item">28분 전</span>
+        <div class="post-stats">
+          <span class="stat-chip up-votes">👍 84</span>
+          <span class="stat-chip">👎 61</span>
+          <span class="stat-chip comments">💬 43</span>
+          <span class="stat-chip">👁 1,892</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="post-card">
+      <div class="post-card-top">
+        <span class="faction-badge fb-purple">🟣 중도</span>
+        <div>
+          <div class="post-title">진영 간 대화가 왜 이렇게 어려운 걸까? 심리학적 접근</div>
+          <div class="post-preview">확증 편향, 집단 극화, 에코챔버 효과... 정치 커뮤니티에서 보이는 심리적 현상들을 정리해봤습니다. 양쪽 모두 스스로를 돌아볼 필요가 있지 않을까요.</div>
+        </div>
+      </div>
+      <div class="post-meta">
+        <span class="post-meta-item"><span class="post-meta-author">균형잡힌눈</span></span>
+        <span class="post-meta-sep">·</span>
+        <span class="post-meta-item">1시간 전</span>
+        <div class="post-stats">
+          <span class="stat-chip up-votes">👍 201</span>
+          <span class="stat-chip">👎 8</span>
+          <span class="stat-chip comments">💬 88</span>
+          <span class="stat-chip">👁 5,103</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="post-card">
+      <div class="post-card-top">
+        <span class="faction-badge fb-red">🔴 진보</span>
+        <div>
+          <div class="post-title">의료 민영화 논의, 지금 당장 막아야 하는 이유</div>
+          <div class="post-preview">현재 국회에서 논의 중인 의료법 개정안이 사실상 의료 민영화의 서막이라는 주장이 나오고 있습니다. 해외 민영화 국가의 의료비 통계를 보면...</div>
+        </div>
+      </div>
+      <div class="post-meta">
+        <span class="post-meta-item"><span class="post-meta-author">의료공공성</span></span>
+        <span class="post-meta-sep">·</span>
+        <span class="post-meta-item">2시간 전</span>
+        <div class="post-stats">
+          <span class="stat-chip up-votes">👍 156</span>
+          <span class="stat-chip">👎 72</span>
+          <span class="stat-chip comments">💬 134</span>
+          <span class="stat-chip">👁 4,721</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="post-card">
+      <div class="post-card-top">
+        <span class="faction-badge fb-blue">🔵 보수</span>
+        <div>
+          <div class="post-title">안보는 타협의 대상이 아니다 — 주한미군 지위협정 재검토 반대</div>
+        </div>
+      </div>
+      <div class="post-meta">
+        <span class="post-meta-item"><span class="post-meta-author">애국보수88</span></span>
+        <span class="post-meta-sep">·</span>
+        <span class="post-meta-item">3시간 전</span>
+        <div class="post-stats">
+          <span class="stat-chip up-votes">👍 93</span>
+          <span class="stat-chip">👎 88</span>
+          <span class="stat-chip comments">💬 71</span>
+          <span class="stat-chip">👁 2,341</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="post-card">
+      <div class="post-card-top">
+        <span class="faction-badge fb-purple">🟣 중도</span>
+        <div>
+          <div class="post-title">부동산 문제, 좌우를 떠나 실효성 있는 대안은 무엇인가</div>
+          <div class="post-preview">공급 확대냐, 수요 억제냐. 양 진영의 주장을 모두 검토하고 실제 효과가 있었던 정책들을 정리해봤습니다. 데이터 기반으로 접근해봅니다.</div>
+        </div>
+      </div>
+      <div class="post-meta">
+        <span class="post-meta-item"><span class="post-meta-author">정책연구가</span></span>
+        <span class="post-meta-sep">·</span>
+        <span class="post-meta-item">4시간 전</span>
+        <div class="post-stats">
+          <span class="stat-chip up-votes">👍 178</span>
+          <span class="stat-chip">👎 15</span>
+          <span class="stat-chip comments">💬 92</span>
+          <span class="stat-chip">👁 6,812</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="post-card">
+      <div class="post-card-top">
+        <span class="faction-badge fb-red">🔴 진보</span>
+        <div>
+          <div class="post-title">노동시간 단축, 생산성 저하가 아닌 질적 성장의 시작</div>
+        </div>
+      </div>
+      <div class="post-meta">
+        <span class="post-meta-item"><span class="post-meta-author">노동권리포럼</span></span>
+        <span class="post-meta-sep">·</span>
+        <span class="post-meta-item">5시간 전</span>
+        <div class="post-stats">
+          <span class="stat-chip up-votes">👍 67</span>
+          <span class="stat-chip">👎 45</span>
+          <span class="stat-chip comments">💬 38</span>
+          <span class="stat-chip">👁 1,234</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 페이지네이션 -->
+    <div class="pagination">
+      <button class="page-btn prev-next">◀ 이전</button>
+      <button class="page-btn active">1</button>
+      <button class="page-btn">2</button>
+      <button class="page-btn">3</button>
+      <button class="page-btn">4</button>
+      <button class="page-btn">5</button>
+      <span style="color:#94a3b8;font-size:13px;padding:0 4px">...</span>
+      <button class="page-btn">26</button>
+      <button class="page-btn prev-next">다음 ▶</button>
+    </div>
+  </main>
+
+  <!-- 오른쪽 사이드바 -->
+  <aside class="sidebar-right">
+
+    <!-- 알림 배너 -->
+    <div class="notice-banner">
+      <span class="notice-icon">🗳️</span>
+      <span>지방선거 D-120. 선거 관련 게시물 작성 시 선거법 준수를 부탁드립니다.</span>
+    </div>
+
+    <!-- 실시간 진영 점수 -->
+    <div class="score-widget">
+      <div class="widget-title">
+        <span class="live-dot" style="width:6px;height:6px;display:inline-block;border-radius:50%;background:#22c55e;animation:pulse 1.5s infinite"></span>
+        실시간 진영 점수
+      </div>
+      <div class="period-tabs">
+        <div class="period-tab active">실시간</div>
+        <div class="period-tab">일별</div>
+        <div class="period-tab">월별</div>
+        <div class="period-tab">연별</div>
+      </div>
+      <div class="score-row">
+        <span class="score-row-label" style="color:var(--red)">진보</span>
+        <div class="score-bar-wrap">
+          <div class="score-bar-fill" style="width:70%;background:var(--red)"></div>
+        </div>
+        <span class="score-row-num" style="color:var(--red)">51.3</span>
+        <span class="score-row-delta dn">▼0.8</span>
+      </div>
+      <div class="score-row">
+        <span class="score-row-label" style="color:var(--blue)">보수</span>
+        <div class="score-bar-wrap">
+          <div class="score-bar-fill" style="width:58%;background:var(--blue)"></div>
+        </div>
+        <span class="score-row-num" style="color:var(--blue)">42.7</span>
+        <span class="score-row-delta up">▲2.1</span>
+      </div>
+      <div class="score-row">
+        <span class="score-row-label" style="color:var(--purple)">중도</span>
+        <div class="score-bar-wrap">
+          <div class="score-bar-fill" style="width:52%;background:var(--purple)"></div>
+        </div>
+        <span class="score-row-num" style="color:var(--purple)">38.1</span>
+        <span class="score-row-delta eq">—0.0</span>
+      </div>
+      <div class="score-updated">방금 전 갱신 · 1분마다 업데이트</div>
+    </div>
+
+    <!-- 실시간 투표 -->
+    <div class="poll-widget">
+      <div class="widget-title">🗳️ 오늘의 쟁점 투표</div>
+      <div class="poll-question">"AI 기본소득 도입에<br>찬성하십니까?"</div>
+      <div class="poll-row">
+        <div class="poll-row-label">
+          <span class="poll-faction-name" style="color:var(--blue)">🔵 보수 찬성</span>
+          <span class="poll-pct" style="color:var(--blue)">28%</span>
+        </div>
+        <div class="poll-bar-wrap"><div class="poll-bar-fill" style="width:28%;background:var(--blue)"></div></div>
+      </div>
+      <div class="poll-row">
+        <div class="poll-row-label">
+          <span class="poll-faction-name" style="color:var(--purple)">🟣 중도 찬성</span>
+          <span class="poll-pct" style="color:var(--purple)">52%</span>
+        </div>
+        <div class="poll-bar-wrap"><div class="poll-bar-fill" style="width:52%;background:var(--purple)"></div></div>
+      </div>
+      <div class="poll-row">
+        <div class="poll-row-label">
+          <span class="poll-faction-name" style="color:var(--red)">🔴 진보 찬성</span>
+          <span class="poll-pct" style="color:var(--red)">71%</span>
+        </div>
+        <div class="poll-bar-wrap"><div class="poll-bar-fill" style="width:71%;background:var(--red)"></div></div>
+      </div>
+      <div class="poll-total">총 2,847명 참여 · 14시간 남음</div>
+      <button class="btn-poll">투표하기</button>
+    </div>
+
+    <!-- 인기 게시물 -->
+    <div class="hot-widget">
+      <div class="widget-title">🔥 지금 뜨는 글</div>
+      <div class="hot-item">
+        <div class="hot-rank top">1</div>
+        <div class="hot-content">
+          <div class="hot-title">진영 간 대화가 왜 이렇게 어려운 걸까? 심리학적 접근</div>
+          <div class="hot-meta">
+            <span class="hot-faction-sm" style="background:rgba(127,119,221,0.12);color:var(--purple)">중도</span>
+            <span>💬 88</span><span>👍 201</span>
+          </div>
+        </div>
+      </div>
+      <div class="hot-item">
+        <div class="hot-rank top">2</div>
+        <div class="hot-content">
+          <div class="hot-title">부동산 문제, 실효성 있는 대안은?</div>
+          <div class="hot-meta">
+            <span class="hot-faction-sm" style="background:rgba(127,119,221,0.12);color:var(--purple)">중도</span>
+            <span>💬 92</span><span>👍 178</span>
+          </div>
+        </div>
+      </div>
+      <div class="hot-item">
+        <div class="hot-rank top">3</div>
+        <div class="hot-content">
+          <div class="hot-title">AI 기본소득 도입, 실현 가능한 이야기인가?</div>
+          <div class="hot-meta">
+            <span class="hot-faction-sm" style="background:rgba(226,75,74,0.12);color:var(--red)">진보</span>
+            <span>💬 97</span><span>👍 128</span>
+          </div>
+        </div>
+      </div>
+      <div class="hot-item">
+        <div class="hot-rank">4</div>
+        <div class="hot-content">
+          <div class="hot-title">의료 민영화 논의, 지금 당장 막아야 하는 이유</div>
+          <div class="hot-meta">
+            <span class="hot-faction-sm" style="background:rgba(226,75,74,0.12);color:var(--red)">진보</span>
+            <span>💬 134</span><span>👍 156</span>
+          </div>
+        </div>
+      </div>
+      <div class="hot-item">
+        <div class="hot-rank">5</div>
+        <div class="hot-content">
+          <div class="hot-title">감세 정책의 실증적 효과 — 해외 사례 분석</div>
+          <div class="hot-meta">
+            <span class="hot-faction-sm" style="background:rgba(55,138,221,0.12);color:var(--blue)">보수</span>
+            <span>💬 43</span><span>👍 84</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+</div>
+
+</body>
+</html>

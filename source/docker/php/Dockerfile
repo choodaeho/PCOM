@@ -54,23 +54,30 @@ RUN apt-get update \
 
 # ─────────────────────────────────────────────
 # PHP-FPM 설정
+# Ubuntu 22.04 기본값은 Unix 소켓이므로 TCP 9000으로 변경해야
+# Nginx가 app:9000 으로 연결 가능 (누락 시 502 Bad Gateway 발생)
 # ─────────────────────────────────────────────
-RUN sed -i "s/user = www-data/user = sail/" /etc/php/8.2/fpm/pool.d/www.conf \
-    && sed -i "s/group = www-data/group = sail/" /etc/php/8.2/fpm/pool.d/www.conf \
-    && sed -i "s/listen.owner = www-data/listen.owner = sail/" /etc/php/8.2/fpm/pool.d/www.conf \
-    && sed -i "s/listen.group = www-data/listen.group = sail/" /etc/php/8.2/fpm/pool.d/www.conf
+RUN sed -i "s/user = www-data/user = sail/"                     /etc/php/8.2/fpm/pool.d/www.conf \
+    && sed -i "s/group = www-data/group = sail/"                 /etc/php/8.2/fpm/pool.d/www.conf \
+    && sed -i "s/listen.owner = www-data/listen.owner = sail/"   /etc/php/8.2/fpm/pool.d/www.conf \
+    && sed -i "s/listen.group = www-data/listen.group = sail/"   /etc/php/8.2/fpm/pool.d/www.conf \
+    && sed -i "s|^listen = .*|listen = 9000|"                    /etc/php/8.2/fpm/pool.d/www.conf
 
 # ─────────────────────────────────────────────
-# 사용자 생성 (sail)
+# 사용자 생성 (sail) + 로그 디렉터리 생성
 # ─────────────────────────────────────────────
 RUN groupadd --force -g $WWWGROUP sail \
-    && useradd -ms /bin/bash --no-user-group -g $WWWGROUP -u 1337 sail
+    && useradd -ms /bin/bash --no-user-group -g $WWWGROUP -u 1337 sail \
+    && mkdir -p /var/log/supervisor
 
 # ─────────────────────────────────────────────
-# Supervisor 설정 (PHP-FPM 관리)
+# Supervisor + 컨테이너 시작 스크립트
+# start-container: 단독 커맨드(composer install 등) 와 서비스 시작 모두 지원
 # ─────────────────────────────────────────────
 COPY docker/php/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY docker/php/start-container  /usr/local/bin/start-container
+RUN chmod +x /usr/local/bin/start-container
 
 EXPOSE 9000
 
-ENTRYPOINT ["sh", "-c", "/usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf"]
+ENTRYPOINT ["start-container"]

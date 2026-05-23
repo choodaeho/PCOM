@@ -170,16 +170,16 @@ ssr-restart: ## SSR 서버 재시작 (빌드 후 코드 반영 시)
 
 .PHONY: install
 install: ## 프로젝트 최초 설치 (clone 후 1회 실행)
-	@echo "📦 Composer 설치..."
-	$(DC) run --rm app composer install
 	@echo "🔑 .env 파일 생성..."
 	cp -n .env.example .env || true
+	@echo "🐳 이미지 빌드 및 컨테이너 시작..."
+	$(DC) up -d --build
+	@echo "⏳ 서비스 준비 대기 (20초, DB + PHP-FPM 초기화)..."
+	sleep 20
+	@echo "📦 Composer 패키지 설치..."
+	$(DC) exec app composer install --no-interaction --prefer-dist
 	@echo "🗝️  APP_KEY 생성..."
-	$(DC) run --rm app php artisan key:generate
-	@echo "🐳 컨테이너 시작..."
-	$(DC) up -d
-	@echo "⏳ DB 준비 대기 (10초)..."
-	sleep 10
+	$(DC) exec app php artisan key:generate
 	@echo "🗄️  마이그레이션 + 시드..."
 	$(DC) exec app php artisan migrate --seed
 	@echo "🎨 NPM 패키지 설치..."

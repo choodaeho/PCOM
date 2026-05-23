@@ -157,16 +157,18 @@ postgres:
 make install
 ```
 
-`make install` 내부 동작:
-1. `composer install` — PHP 의존성 설치
-2. `.env` 복사 (없는 경우)
-3. `php artisan key:generate` — APP_KEY 생성
-4. `docker compose up -d` — 컨테이너 전체 기동
-5. 10초 대기 (PostgreSQL 초기화 완료 대기)
-6. `php artisan migrate:fresh --seed` — DB 스키마 생성 + 시드 데이터 투입
-7. **`npm install`** — Node.js 패키지 설치 *(신규)*
-8. **`npm run build`** — 프론트엔드 정적 빌드 *(신규)*
+`make install` 내부 동작 순서:
+1. `.env` 복사 (없는 경우 `.env.example` → `.env`)
+2. `docker compose up -d --build` — 이미지 빌드 + 컨테이너 전체 기동
+3. 20초 대기 (PostgreSQL healthcheck + PHP-FPM 초기화 완료 대기)
+4. `composer install` — PHP 의존성 설치 (실행 중인 app 컨테이너 내부)
+5. `php artisan key:generate` — APP_KEY 생성
+6. `php artisan migrate --seed` — DB 스키마 생성 + 시드 데이터 투입
+7. `npm install` — Node.js 패키지 설치
+8. `npm run build` — 프론트엔드 정적 빌드 (CSR + SSR 동시)
 9. `php artisan l5-swagger:generate` — Swagger 문서 생성
+
+> **재설치 시**: `make down && docker volume rm polit_postgres_data` 후 다시 `make install`
 
 ### 설치 완료 후 접속 주소
 
@@ -379,6 +381,57 @@ sudo mv composer.phar /usr/local/bin/composer
 sudo apt install make -y
 ```
 
+### Q: `make install` 후 http://localhost 접속 시 502 Bad Gateway
+
+**원인**: PHP-FPM이 Unix 소켓(`/run/php/php8.2-fpm.sock`)으로 listen하는데  
+Nginx가 TCP `app:9000`으로 연결을 시도하면 연결이 거부됩니다.  
+→ `docker/php/Dockerfile`에서 PHP-FPM pool의 `listen` 값을 9000으로 수정 후 이미지를 **반드시 다시 빌드**해야 합니다.
+
+```bash
+# 이미지 재빌드 + 재시작 (소스 변경 시 항상 이렇게)
+make rebuild
+
+# 빌드 후 컨테이너 상태 확인
+make ps
+
+# app 컨테이너 로그에서 PHP-FPM 기동 메시지 확인
+make logs-app
+# 정상이면: "NOTICE: fpm is running, pid 1" 메시지 출력
+```
+
+이미 `make install`을 한 번 실행했다면 이미지가 구버전으로 캐시되어 있습니다.  
+`make rebuild` 후 다시 `make install` 또는 아래 순서로 실행하세요:
+
+```bash
+make down
+make rebuild
+make fresh          # migrate:fresh --seed
+make npm-install
+make npm-build
+```
+
+---
+
+### Q: `make npm-dev` 실행 시 `sh: 1: vite: not found`
+
+**원인**: `node_modules`가 컨테이너 내부에 설치되지 않은 상태입니다.  
+`make install` 도중 app 컨테이너가 502 상태(PHP-FPM 미기동)로 인해  
+`npm install` 단계가 실패했을 가능성이 높습니다.
+
+```bash
+# 1) 위의 502 문제를 먼저 해결 (make rebuild)
+# 2) npm 패키지 다시 설치
+make npm-install
+
+# 설치 확인 (node_modules/.bin/vite 존재 여부)
+docker compose exec app ls node_modules/.bin/vite
+
+# 3) 개발 서버 시작
+make npm-dev
+```
+
+---
+
 ### Q: 화면이 흰 페이지 / 빈 화면으로 보임 (Vite 빌드 없음)
 ```bash
 # 프론트엔드 빌드가 한 번도 실행된 적 없거나, public/build/가 없는 경우
@@ -430,4 +483,4 @@ make npm-dev
 
 ---
 
-*최종 수정: 2026-05-21*
+*최종 수정: 2026-05-23*

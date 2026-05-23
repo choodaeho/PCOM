@@ -62,12 +62,29 @@ docker compose version  # Docker Compose version v2.x.x
 > ⚠️ **중요**: 프로젝트는 반드시 WSL2 파일시스템(`~/` 또는 `/home/user/`) 안에 두세요.  
 > Windows 경로(`/mnt/c/...`)에 두면 파일 I/O 속도가 10배 이상 느려집니다.
 
+**폴더 구조 안내:**  
+`D:\2026\pcom` 루트에는 문서·설계 자료가 있고, 실제 Laravel 소스는 `source/` 하위에 있습니다.
+
+```
+D:\2026\pcom\
+├── source\          ← Laravel 소스 (복사 대상)
+│   ├── app\
+│   ├── resources\
+│   ├── docker-compose.yml
+│   ├── Makefile
+│   └── ...
+├── SETUP_WSL2.md    ← 개발 환경 가이드 (문서)
+├── API_KEYS_GUIDE.md
+├── design-main.html ← UI 시안 (문서)
+└── ...              ← 기타 설계/전략 문서
+```
+
 ```bash
 cd ~
 mkdir -p projects && cd projects
 
-# 기존 Windows 경로의 소스를 WSL2로 복사하는 경우:
-cp -r /mnt/d/2026/pcom ~/projects/pcom
+# Windows 경로의 Laravel 소스만 WSL2로 복사:
+cp -r /mnt/d/2026/pcom/source ~/projects/pcom
 cd ~/projects/pcom
 ```
 

@@ -9,7 +9,7 @@
  * 주의: Reverb 컨테이너(port 8080)가 실행 중일 때만 연결됩니다.
  */
 
-import Echo from '@laravel/echo'
+import Echo from 'laravel-echo'
 import Pusher from 'pusher-js'
 
 window.Pusher = Pusher

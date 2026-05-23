@@ -23,7 +23,7 @@ class BoardsSeeder extends Seeder
                 'description'     => '보수 진영만의 자유로운 토론 공간',
                 'board_type'      => BoardType::Azit,
                 'allowed_faction' => 'conservative',
-                'order'           => 1,
+                'sort_order'      => 1,
                 'is_active'       => true,
             ],
             [
@@ -32,7 +32,7 @@ class BoardsSeeder extends Seeder
                 'description'     => '중도 진영만의 자유로운 토론 공간',
                 'board_type'      => BoardType::Azit,
                 'allowed_faction' => 'moderate',
-                'order'           => 2,
+                'sort_order'      => 2,
                 'is_active'       => true,
             ],
             [
@@ -41,7 +41,7 @@ class BoardsSeeder extends Seeder
                 'description'     => '진보 진영만의 자유로운 토론 공간',
                 'board_type'      => BoardType::Azit,
                 'allowed_faction' => 'progressive',
-                'order'           => 3,
+                'sort_order'      => 3,
                 'is_active'       => true,
             ],
 
@@ -52,7 +52,7 @@ class BoardsSeeder extends Seeder
                 'description'     => '진영을 초월한 정치 토론 전쟁터',
                 'board_type'      => BoardType::Battle,
                 'allowed_faction' => 'all',
-                'order'           => 10,
+                'sort_order'      => 10,
                 'is_active'       => true,
             ],
             [
@@ -61,7 +61,7 @@ class BoardsSeeder extends Seeder
                 'description'     => '경제 정책을 둘러싼 진영 간 논쟁',
                 'board_type'      => BoardType::Battle,
                 'allowed_faction' => 'all',
-                'order'           => 11,
+                'sort_order'      => 11,
                 'is_active'       => true,
             ],
             [
@@ -70,7 +70,7 @@ class BoardsSeeder extends Seeder
                 'description'     => '사회 이슈에 대한 다양한 시각',
                 'board_type'      => BoardType::Battle,
                 'allowed_faction' => 'all',
-                'order'           => 12,
+                'sort_order'      => 12,
                 'is_active'       => true,
             ],
 
@@ -81,7 +81,7 @@ class BoardsSeeder extends Seeder
                 'description'     => '폴릿 운영 공지 및 업데이트 안내',
                 'board_type'      => BoardType::Notice,
                 'allowed_faction' => 'all',
-                'order'           => 0,
+                'sort_order'      => 0,
                 'is_active'       => true,
             ],
         ];

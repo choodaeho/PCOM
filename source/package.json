@@ -6,7 +6,7 @@
         "build": "vite build"
     },
     "dependencies": {
-        "@laravel/echo": "^1.16",
+        "laravel-echo": "^1.15",
         "@vue/server-renderer": "^3.4",
         "pusher-js": "^8.4"
     },

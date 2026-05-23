@@ -291,6 +291,64 @@ VITE_REVERB_SCHEME="${REVERB_SCHEME}"
 
 ## 7. 일상 개발 명령어
 
+### 소스 동기화 (Windows → WSL2)
+
+Cowork(Claude)가 `D:\2026\pcom\source`의 파일을 수정하면 WSL2 프로젝트에 반영해야 합니다.  
+`make sync`는 rsync를 이용해 **변경된 파일만** 골라서 복사합니다.
+
+```bash
+cd ~/projects/pcom
+
+# 소스 동기화 (변경 파일만, vendor/node_modules/.env 제외)
+make sync
+
+# Dockerfile 또는 start-container 변경이 포함된 경우 → 동기화 + 이미지 재빌드
+make sync-rebuild
+```
+
+**동기화 제외 항목** (WSL2 로컬 상태 보존):
+
+| 제외 경로 | 이유 |
+|---|---|
+| `.env` | 로컬 환경 설정 보호 (비밀번호 등) |
+| `vendor/` | `composer install`로 컨테이너 내부 설치 |
+| `node_modules/` | `npm install`로 컨테이너 내부 설치 |
+| `storage/logs/` | 런타임 로그 |
+| `public/build/`, `bootstrap/ssr/` | 빌드 산출물 |
+
+> **드라이브가 D: 가 아닌 경우:**
+> ```bash
+> make sync WIN_SRC=/mnt/c/other/path/source
+> ```
+
+> **최초 1회** — `make sync` 자체가 Makefile에 있으므로, Makefile부터 수동 복사 후 이후는 `make sync` 사용:
+> ```bash
+> cp /mnt/d/2026/pcom/source/Makefile ~/projects/pcom/Makefile
+> make sync
+> ```
+
+---
+
+### 재설치 / 초기화
+
+```bash
+# 볼륨(PostgreSQL 데이터) 포함 완전 초기화 후 재설치
+# → DB 인증 오류, 마이그레이션 꼬임, 환경 초기화 시 사용
+make reinstall
+```
+
+`make reinstall` 동작 순서:
+1. 확인 프롬프트 (y 입력 필요)
+2. `docker compose down -v` — 컨테이너 + 볼륨 완전 삭제
+3. `.env.example` → `.env` 강제 재생성 (기존 `.env` 덮어쓰기)
+4. `make install` 전체 재실행
+
+> ⚠️ `.env`가 덮어써지므로 비밀번호 등 커스텀 설정은 재설치 후 다시 입력해야 합니다.
+
+---
+
+### 기본 명령어
+
 ```bash
 # 컨테이너 시작/정지
 make up
@@ -305,7 +363,7 @@ make logs-nginx    # Nginx 로그만
 make artisan CMD="route:list"
 make artisan CMD="queue:work"
 
-# DB 초기화
+# DB 초기화 (볼륨 유지, 데이터만 리셋)
 make fresh         # migrate:fresh --seed
 
 # 진영 점수 수동 집계
@@ -483,4 +541,4 @@ make npm-dev
 
 ---
 
-*최종 수정: 2026-05-23*
+*최종 수정: 2026-05-23 (make sync / make reinstall 추가)*

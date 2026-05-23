@@ -55,12 +55,14 @@ return new class extends Migration
             $table->unsignedInteger('vote_down_count')->default(0);
             $table->unsignedInteger('report_count')->default(0);
 
-            // 전문 검색(Full-Text Search)용 tsvector 컬럼
-            $table->specificType('search_vector', 'tsvector')->nullable()->comment('FTS 벡터 (title + content)');
-
             $table->softDeletes();
             $table->timestamps();
         });
+
+        // 전문 검색(Full-Text Search)용 tsvector 컬럼
+        // specificType()은 Laravel 11에서 제거됨 → DB::statement() 로 직접 추가
+        DB::statement('ALTER TABLE posts ADD COLUMN search_vector tsvector');
+        DB::statement("COMMENT ON COLUMN posts.search_vector IS 'FTS 벡터 (title + content)'");
 
         // 기본 인덱스
         DB::statement('CREATE INDEX idx_posts_board_id ON posts (board_id, created_at DESC) WHERE deleted_at IS NULL');

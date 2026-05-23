@@ -28,7 +28,7 @@ class PoliticalTestsSeeder extends Seeder
                     ['value' => -2, 'label' => '매우 반대'],
                 ],
                 'weight' => 1.2,
-                'order' => 1,
+                'sort_order' => 1,
                 'is_active' => true,
             ],
             [
@@ -41,7 +41,7 @@ class PoliticalTestsSeeder extends Seeder
                     ['value' => -2, 'label' => '매우 반대'],
                 ],
                 'weight' => 1.5,
-                'order' => 2,
+                'sort_order' => 2,
                 'is_active' => true,
             ],
             [
@@ -54,7 +54,7 @@ class PoliticalTestsSeeder extends Seeder
                     ['value' => -2, 'label' => '매우 반대'],
                 ],
                 'weight' => 1.3,
-                'order' => 3,
+                'sort_order' => 3,
                 'is_active' => true,
             ],
             [
@@ -67,7 +67,7 @@ class PoliticalTestsSeeder extends Seeder
                     ['value' => 2,  'label' => '매우 반대'],
                 ],
                 'weight' => 1.4,
-                'order' => 4,
+                'sort_order' => 4,
                 'is_active' => true,
             ],
             [
@@ -80,7 +80,7 @@ class PoliticalTestsSeeder extends Seeder
                     ['value' => -2, 'label' => '매우 반대'],
                 ],
                 'weight' => 1.0,
-                'order' => 5,
+                'sort_order' => 5,
                 'is_active' => true,
             ],
             [
@@ -93,7 +93,7 @@ class PoliticalTestsSeeder extends Seeder
                     ['value' => 2,  'label' => '매우 반대'],
                 ],
                 'weight' => 1.5,
-                'order' => 6,
+                'sort_order' => 6,
                 'is_active' => true,
             ],
             [
@@ -106,7 +106,7 @@ class PoliticalTestsSeeder extends Seeder
                     ['value' => 2,  'label' => '매우 반대'],
                 ],
                 'weight' => 1.3,
-                'order' => 7,
+                'sort_order' => 7,
                 'is_active' => true,
             ],
             [
@@ -119,7 +119,7 @@ class PoliticalTestsSeeder extends Seeder
                     ['value' => -2, 'label' => '매우 반대'],
                 ],
                 'weight' => 1.0,
-                'order' => 8,
+                'sort_order' => 8,
                 'is_active' => true,
             ],
             [
@@ -132,7 +132,7 @@ class PoliticalTestsSeeder extends Seeder
                     ['value' => -2, 'label' => '매우 반대'],
                 ],
                 'weight' => 1.2,
-                'order' => 9,
+                'sort_order' => 9,
                 'is_active' => true,
             ],
             [
@@ -145,7 +145,7 @@ class PoliticalTestsSeeder extends Seeder
                     ['value' => 2,  'label' => '매우 반대'],
                 ],
                 'weight' => 1.1,
-                'order' => 10,
+                'sort_order' => 10,
                 'is_active' => true,
             ],
         ];
@@ -156,7 +156,7 @@ class PoliticalTestsSeeder extends Seeder
                 [
                     'options'   => $q['options'],
                     'weight'    => $q['weight'],
-                    'order'     => $q['order'],
+                    'sort_order'     => $q['sort_order'],
                     'is_active' => $q['is_active'],
                 ]
             );

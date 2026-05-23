@@ -125,6 +125,43 @@ phpstan: ## PHPStan 정적 분석
 	$(DC) exec app ./vendor/bin/phpstan analyse --memory-limit=512M
 
 # ─────────────────────────────────────────────
+# Windows → WSL2 소스 동기화
+# ─────────────────────────────────────────────
+
+# Windows 소스 경로 (WSL2에서 마운트되는 경로)
+WIN_SRC ?= /mnt/d/2026/pcom/source
+
+.PHONY: sync
+sync: ## Windows(D:/2026/pcom/source) → WSL2 소스 동기화 (변경 파일만)
+	@command -v rsync >/dev/null 2>&1 || { echo "❌ rsync가 없습니다: sudo apt install rsync -y"; exit 1; }
+	@echo "🔄 동기화 중: $(WIN_SRC) → $(CURDIR)"
+	@rsync -rltu \
+		--no-perms --no-owner --no-group \
+		--exclude='.env' \
+		--exclude='vendor/' \
+		--exclude='node_modules/' \
+		--exclude='.git/' \
+		--exclude='storage/logs/*.log' \
+		--exclude='storage/framework/cache/' \
+		--exclude='storage/framework/sessions/' \
+		--exclude='storage/framework/views/' \
+		--exclude='bootstrap/cache/' \
+		--exclude='public/build/' \
+		--exclude='bootstrap/ssr/' \
+		--itemize-changes \
+		$(WIN_SRC)/ $(CURDIR)/
+	@chmod +x $(CURDIR)/docker/php/start-container 2>/dev/null || true
+	@echo ""
+	@echo "✅ 동기화 완료"
+	@echo "💡 Dockerfile 변경이 포함된 경우: make rebuild"
+
+.PHONY: sync-rebuild
+sync-rebuild: sync ## 동기화 + 이미지 재빌드 (Dockerfile 변경 시)
+	@echo "🐳 이미지 재빌드..."
+	$(DC) build app
+	$(DC) up -d app ssr
+
+# ─────────────────────────────────────────────
 # 패키지 관리
 # ─────────────────────────────────────────────
 
@@ -168,14 +205,35 @@ ssr-restart: ## SSR 서버 재시작 (빌드 후 코드 반영 시)
 # 초기 설치
 # ─────────────────────────────────────────────
 
+.PHONY: reinstall
+reinstall: ## 볼륨 포함 완전 초기화 후 재설치 (인증 오류·DB 꼬임 시 사용)
+	@echo "⚠️  데이터 볼륨을 포함한 완전 초기화를 진행합니다."
+	@echo "   PostgreSQL 데이터가 모두 삭제됩니다."
+	@read -p "   계속하시겠습니까? [y/N] " confirm; \
+	  [ "$$confirm" = "y" ] || [ "$$confirm" = "Y" ] || { echo "취소"; exit 1; }
+	$(DC) down -v --remove-orphans
+	@echo "🔑 .env 파일 강제 재생성..."
+	cp .env.example .env
+	$(MAKE) install
+
 .PHONY: install
 install: ## 프로젝트 최초 설치 (clone 후 1회 실행)
 	@echo "🔑 .env 파일 생성..."
 	cp -n .env.example .env || true
 	@echo "🐳 이미지 빌드 및 컨테이너 시작..."
 	$(DC) up -d --build
-	@echo "⏳ 서비스 준비 대기 (20초, DB + PHP-FPM 초기화)..."
-	sleep 20
+	@echo "⏳ PostgreSQL 인증 준비 대기 중 (최대 60초)..."
+	@set -e; \
+	DB_USER=$$(grep '^DB_USERNAME' .env | cut -d= -f2); \
+	DB_PASS=$$(grep '^DB_PASSWORD' .env | cut -d= -f2); \
+	DB_NAME=$$(grep '^DB_DATABASE' .env | cut -d= -f2); \
+	for i in $$(seq 1 30); do \
+	  if $(DC) exec -T postgres psql -U "$$DB_USER" -d "$$DB_NAME" -c "SELECT 1" > /dev/null 2>&1; then \
+	    echo "✅ PostgreSQL 준비 완료 ($${i}회 시도)"; break; \
+	  fi; \
+	  echo "  대기 중... ($${i}/30)"; sleep 2; \
+	  if [ $$i -eq 30 ]; then echo "❌ PostgreSQL 연결 시간 초과"; exit 1; fi; \
+	done
 	@echo "📦 Composer 패키지 설치..."
 	$(DC) exec app composer install --no-interaction --prefer-dist
 	@echo "🗝️  APP_KEY 생성..."

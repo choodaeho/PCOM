@@ -45,34 +45,89 @@ class VoteController extends Controller
     // 내부 헬퍼
     // -------------------------------------------------------------------------
 
+    /**
+     * 진영 관계에 따른 매너 점수 증감량.
+     * 추천: 다른 진영 +1 / 같은 진영 0
+     * 비추천: 같은 진영 -1 / 다른 진영 0
+     */
+    private function mannerDelta(VoteType $voteType, string $voter, string $author): int
+    {
+        $same = $voter === $author;
+        return match($voteType) {
+            VoteType::Up   => $same ? 0 : 1,
+            VoteType::Down => $same ? -1 : 0,
+        };
+    }
+
+    private function factionValue(mixed $political_type): string
+    {
+        return $political_type instanceof \App\Enums\FactionType
+            ? $political_type->value
+            : (string) $political_type;
+    }
+
     private function toggleVote(Request $request, Post|Comment $target): JsonResponse
     {
         $validated = $request->validate([
             'vote_type' => ['required', 'in:up,down'],
         ]);
 
-        $voteType = VoteType::from($validated['vote_type']);
-        $userId   = $request->user()->id;
+        $voteType     = VoteType::from($validated['vote_type']);
+        $userId       = $request->user()->id;
+        $voterFaction = $this->factionValue($request->user()->political_type);
 
-        $result = DB::transaction(function () use ($target, $userId, $voteType) {
-            $existing = $target->votes()->where('user_id', $userId)->first();
+        $result = DB::transaction(function () use ($target, $userId, $voteType, $voterFaction) {
+            $existing     = $target->votes()->where('user_id', $userId)->first();
+            $author       = $target->user;
+            $authorFaction = $author ? $this->factionValue($author->political_type) : '';
 
             if ($existing !== null) {
+                $oldType = $existing->vote_type;
+
                 if ($existing->vote_type === $voteType) {
-                    // 같은 유형 → 취소
+                    // 같은 유형 → 취소 (이전 효과 되돌리기)
                     $existing->delete();
+                    if ($author) {
+                        $delta = $this->mannerDelta($voteType, $voterFaction, $authorFaction);
+                        if ($delta !== 0) {
+                            $author->increment('manner_score', -$delta);
+                        }
+                    }
                     return ['action' => 'cancelled', 'vote_type' => null];
                 }
-                // 다른 유형 → 변경 (delete + create로 Observer 정상 동작)
+
+                // 다른 유형으로 변경
                 $existing->delete();
+                Vote::create([
+                    'user_id'      => $userId,
+                    'votable_id'   => $target->id,
+                    'votable_type' => get_class($target),
+                    'vote_type'    => $voteType->value,
+                ]);
+                if ($author) {
+                    $reverseDelta = $this->mannerDelta($oldType, $voterFaction, $authorFaction);
+                    $newDelta     = $this->mannerDelta($voteType, $voterFaction, $authorFaction);
+                    $total        = $newDelta - $reverseDelta;
+                    if ($total !== 0) {
+                        $author->increment('manner_score', $total);
+                    }
+                }
+                return ['action' => 'voted', 'vote_type' => $voteType->value];
             }
 
+            // 신규 투표
             Vote::create([
                 'user_id'      => $userId,
                 'votable_id'   => $target->id,
                 'votable_type' => get_class($target),
                 'vote_type'    => $voteType->value,
             ]);
+            if ($author) {
+                $delta = $this->mannerDelta($voteType, $voterFaction, $authorFaction);
+                if ($delta !== 0) {
+                    $author->increment('manner_score', $delta);
+                }
+            }
 
             return ['action' => 'voted', 'vote_type' => $voteType->value];
         });

@@ -88,17 +88,22 @@ class FactionScoreService
             foreach (FactionType::cases() as $faction) {
                 $factionVal = $faction->value;
 
-                // 원시 지표 집계
+                // 원시 지표 집계 (놀이터 게시판 제외)
                 $postCount = DB::table('posts')
-                    ->where('faction', $factionVal)
-                    ->whereDate('created_at', $dateStr)
-                    ->whereNull('deleted_at')
+                    ->join('boards', 'posts.board_id', '=', 'boards.id')
+                    ->where('boards.board_type', '!=', 'playground')
+                    ->where('posts.faction', $factionVal)
+                    ->whereDate('posts.created_at', $dateStr)
+                    ->whereNull('posts.deleted_at')
                     ->count();
 
                 $commentCount = DB::table('comments')
-                    ->where('faction', $factionVal)
-                    ->whereDate('created_at', $dateStr)
-                    ->whereNull('deleted_at')
+                    ->join('posts', 'comments.post_id', '=', 'posts.id')
+                    ->join('boards', 'posts.board_id', '=', 'boards.id')
+                    ->where('boards.board_type', '!=', 'playground')
+                    ->where('comments.faction', $factionVal)
+                    ->whereDate('comments.created_at', $dateStr)
+                    ->whereNull('comments.deleted_at')
                     ->count();
 
                 $voteUpCount = DB::table('votes')
@@ -107,6 +112,8 @@ class FactionScoreService
                              ->where('votes.votable_type', 'App\Models\Post')
                              ->where('posts.faction', $factionVal);
                     })
+                    ->join('boards', 'posts.board_id', '=', 'boards.id')
+                    ->where('boards.board_type', '!=', 'playground')
                     ->where('votes.vote_type', 'up')
                     ->whereDate('votes.created_at', $dateStr)
                     ->count('votes.id');
@@ -117,6 +124,8 @@ class FactionScoreService
                              ->where('votes.votable_type', 'App\Models\Post')
                              ->where('posts.faction', $factionVal);
                     })
+                    ->join('boards', 'posts.board_id', '=', 'boards.id')
+                    ->where('boards.board_type', '!=', 'playground')
                     ->where('votes.vote_type', 'down')
                     ->whereDate('votes.created_at', $dateStr)
                     ->count('votes.id');
@@ -127,23 +136,30 @@ class FactionScoreService
                              ->where('reports.reportable_type', 'App\Models\Post')
                              ->where('posts.faction', $factionVal);
                     })
+                    ->join('boards', 'posts.board_id', '=', 'boards.id')
+                    ->where('boards.board_type', '!=', 'playground')
                     ->where('reports.status', 'actioned')
                     ->whereDate('reports.created_at', $dateStr)
                     ->count('reports.id');
 
-                // 활성 사용자: 당일 게시/댓글 작성한 해당 진영 고유 사용자 수
+                // 활성 사용자: 당일 게시/댓글 작성한 해당 진영 고유 사용자 수 (놀이터 제외)
                 $activeUserCount = DB::table('users')
                     ->where('political_type', $factionVal)
                     ->where('status', 'active')
                     ->whereExists(function ($q) use ($dateStr) {
                         $q->selectRaw('1')
                           ->from('posts')
+                          ->join('boards', 'posts.board_id', '=', 'boards.id')
+                          ->where('boards.board_type', '!=', 'playground')
                           ->whereColumn('posts.user_id', 'users.id')
                           ->whereDate('posts.created_at', $dateStr)
                           ->whereNull('posts.deleted_at')
                           ->unionAll(
                               DB::table('comments')
                                 ->selectRaw('1')
+                                ->join('posts as cp', 'comments.post_id', '=', 'cp.id')
+                                ->join('boards as cb', 'cp.board_id', '=', 'cb.id')
+                                ->where('cb.board_type', '!=', 'playground')
                                 ->whereColumn('comments.user_id', 'users.id')
                                 ->whereDate('comments.created_at', $dateStr)
                                 ->whereNull('comments.deleted_at')
@@ -223,16 +239,22 @@ class FactionScoreService
         foreach (FactionType::cases() as $faction) {
             $factionVal = $faction->value;
 
+            // 놀이터 게시판 제외
             $postCount = DB::table('posts')
-                ->where('faction', $factionVal)
-                ->whereDate('created_at', $today)
-                ->whereNull('deleted_at')
+                ->join('boards', 'posts.board_id', '=', 'boards.id')
+                ->where('boards.board_type', '!=', 'playground')
+                ->where('posts.faction', $factionVal)
+                ->whereDate('posts.created_at', $today)
+                ->whereNull('posts.deleted_at')
                 ->count();
 
             $commentCount = DB::table('comments')
-                ->where('faction', $factionVal)
-                ->whereDate('created_at', $today)
-                ->whereNull('deleted_at')
+                ->join('posts', 'comments.post_id', '=', 'posts.id')
+                ->join('boards', 'posts.board_id', '=', 'boards.id')
+                ->where('boards.board_type', '!=', 'playground')
+                ->where('comments.faction', $factionVal)
+                ->whereDate('comments.created_at', $today)
+                ->whereNull('comments.deleted_at')
                 ->count();
 
             $activeUserCount = DB::table('users')

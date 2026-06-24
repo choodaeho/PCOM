@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\PostStatus;
 use App\Http\Controllers\Controller;
 use App\Models\AdminActionLog;
 use App\Models\Report;
@@ -51,7 +52,7 @@ class ReportController extends Controller
         ]);
 
         if ($report->reportable) {
-            $report->reportable->update(['status' => 'hidden']);
+            $report->reportable->update(['status' => PostStatus::Hidden]);
 
             if ($report->reportable->user) {
                 $report->reportable->user->decrement('manner_score', 10);
@@ -72,5 +73,23 @@ class ReportController extends Controller
         ]);
 
         return back()->with('success', '신고를 기각했습니다.');
+    }
+
+    /** 신고로 숨겨진 콘텐츠를 복구 */
+    public function restoreContent(Request $request, Report $report): RedirectResponse
+    {
+        if ($report->reportable && $report->reportable->status === PostStatus::Hidden) {
+            $report->reportable->update(['status' => PostStatus::Published]);
+        }
+
+        $report->update([
+            'status'      => 'dismissed',
+            'reviewed_by' => $request->user()->id,
+            'reviewed_at' => now(),
+        ]);
+
+        AdminActionLog::record($request->user()->id, 'report_restore_content', $report);
+
+        return back()->with('success', '콘텐츠가 복구되었습니다.');
     }
 }

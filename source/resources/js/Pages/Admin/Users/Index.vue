@@ -41,6 +41,12 @@ const activate = (user) => {
 
 const factionLabel = { conservative: '보수', moderate: '중도', progressive: '진보' }
 const statusLabel = { active: '활성', suspended: '정지', banned: '차단', pending: '미완료' }
+const userTypeLabel = { admin: '관리자', test: '테스트', normal: '일반' }
+const userTypeColor = {
+  admin: 'bg-rose-500/20 text-rose-400',
+  test: 'bg-amber-500/20 text-amber-400',
+  normal: 'bg-slate-700 text-slate-400',
+}
 </script>
 
 <template>
@@ -99,6 +105,7 @@ const statusLabel = { active: '활성', suspended: '정지', banned: '차단', p
             <th class="px-4 py-3 font-medium">닉네임</th>
             <th class="px-4 py-3 font-medium">이메일</th>
             <th class="px-4 py-3 font-medium">진영</th>
+            <th class="px-4 py-3 font-medium">유형</th>
             <th class="px-4 py-3 font-medium">상태</th>
             <th class="px-4 py-3 font-medium">가입일</th>
             <th class="px-4 py-3 font-medium">게시글</th>
@@ -118,6 +125,11 @@ const statusLabel = { active: '활성', suspended: '정지', banned: '차단', p
                 'bg-slate-700 text-slate-500': !user.political_type,
               }]">
                 {{ factionLabel[user.political_type] ?? '미완료' }}
+              </span>
+            </td>
+            <td class="px-4 py-3">
+              <span :class="['text-xs px-2 py-0.5 rounded-full font-medium', userTypeColor[user.user_type] ?? 'bg-slate-700 text-slate-400']">
+                {{ user.user_type === 'admin' ? '🔴 ' : user.user_type === 'test' ? '🟡 ' : '⚪ ' }}{{ userTypeLabel[user.user_type] ?? user.user_type ?? '-' }}
               </span>
             </td>
             <td class="px-4 py-3">

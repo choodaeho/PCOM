@@ -7,11 +7,16 @@ namespace App\Http\Controllers;
 use App\Models\Board;
 use App\Models\Comment;
 use App\Models\Post;
+use App\Services\UserLevelService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class CommentController extends Controller
 {
+    public function __construct(private readonly UserLevelService $levelService)
+    {
+    }
+
     public function store(Request $request, Board $board, Post $post): RedirectResponse
     {
         $validated = $request->validate([
@@ -32,6 +37,8 @@ class CommentController extends Controller
             'parent_id'    => $validated['parent_id'] ?? null,
             'is_anonymous' => $validated['is_anonymous'] ?? false,
         ]);
+
+        $this->levelService->syncUser($request->user());
 
         return back()->with('success', '댓글이 작성되었습니다.');
     }

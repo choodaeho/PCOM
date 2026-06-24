@@ -5,13 +5,19 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Board;
+use App\Models\Comment;
 use App\Models\Post;
+use App\Services\UserLevelService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class PostController extends Controller
 {
+    public function __construct(private readonly UserLevelService $levelService)
+    {
+    }
+
     public function create(Request $request, Board $board): Response
     {
         return Inertia::render('Posts/Create', [
@@ -23,9 +29,15 @@ class PostController extends Controller
     {
         $validated = $request->validate([
             'title'        => ['required', 'string', 'min:2', 'max:300'],
-            'content'      => ['required', 'string', 'min:10'],
+            'content'      => ['required', 'string'],
             'is_anonymous' => ['boolean'],
         ]);
+
+        // HTML 태그를 제거한 실제 텍스트 길이 검증
+        $plainText = trim(strip_tags($validated['content']));
+        if (mb_strlen($plainText) < 2) {
+            return back()->withErrors(['content' => '본문 내용을 2자 이상 입력해주세요.'])->withInput();
+        }
 
         $post = $board->posts()->create([
             'user_id'      => $request->user()->id,
@@ -35,6 +47,8 @@ class PostController extends Controller
             'is_anonymous' => $validated['is_anonymous'] ?? false,
             'status'       => 'published',
         ]);
+
+        $this->levelService->syncUser($request->user());
 
         return redirect()->route('posts.show', [$board->slug, $post])
             ->with('success', '게시글이 작성되었습니다.');
@@ -67,13 +81,31 @@ class PostController extends Controller
             ->where('votable_id', $post->id)
             ->value('vote_type');
 
+        // 댓글/답글 투표 상태 (이미 로드된 관계에서 ID 수집 → 추가 쿼리 최소화)
+        $myCommentVotes = [];
+        if ($user) {
+            $commentIds = $post->comments->flatMap(
+                fn($c) => collect([$c->id])->merge($c->replies->pluck('id'))
+            )->filter();
+
+            if ($commentIds->isNotEmpty()) {
+                $myCommentVotes = $user->votes()
+                    ->where('votable_type', Comment::class)
+                    ->whereIn('votable_id', $commentIds)
+                    ->get(['votable_id', 'vote_type'])
+                    ->mapWithKeys(fn($v) => [(string) $v->votable_id => $v->vote_type->value])
+                    ->toArray();
+            }
+        }
+
         return Inertia::render('Posts/Show', [
-            'board'  => array_merge(
+            'board'          => array_merge(
                 $board->only(['id', 'name', 'slug']),
                 ['board_type' => $board->board_type->value]
             ),
-            'post'   => $post,
-            'myVote' => $myVote,
+            'post'           => $post,
+            'myVote'         => $myVote,
+            'myCommentVotes' => $myCommentVotes,  // { "commentId": "up"|"down" }
         ]);
     }
 
@@ -93,8 +125,13 @@ class PostController extends Controller
 
         $validated = $request->validate([
             'title'   => ['required', 'string', 'min:2', 'max:300'],
-            'content' => ['required', 'string', 'min:10'],
+            'content' => ['required', 'string'],
         ]);
+
+        $plainText = trim(strip_tags($validated['content']));
+        if (mb_strlen($plainText) < 2) {
+            return back()->withErrors(['content' => '본문 내용을 2자 이상 입력해주세요.'])->withInput();
+        }
 
         $post->update($validated);
 

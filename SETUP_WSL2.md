@@ -253,6 +253,18 @@ docker compose exec app npm run build
 
 빌드된 파일은 `public/build/`에 저장되며, `app.blade.php`의 `@vite` 디렉티브가 자동으로 참조합니다.
 
+> ⚠️ **빌드 후 필수**: `npm run build`는 root 권한으로 실행되어 `storage/` 소유권이 바뀝니다.  
+> **빌드 직후 반드시** 아래 권한 복구 명령을 실행하세요.  
+> **`-u root` 옵션이 필수입니다** — 없으면 www-data가 root 소유 파일을 chown할 수 없어 조용히 실패합니다:
+>
+> ```bash
+> docker compose exec -u root app bash -c \
+>   "chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache && \
+>    chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache"
+> ```
+>
+> 이 명령을 빠뜨리거나 `-u root` 없이 실행하면 Laravel 로그 쓰기 실패 → 모든 페이지 500 오류가 발생합니다.
+
 ---
 
 ## 6-2. WebSocket(Reverb) 연결 확인
@@ -290,6 +302,134 @@ VITE_REVERB_SCHEME="${REVERB_SCHEME}"
 ---
 
 ## 7. 일상 개발 명령어
+
+### 7-0. 매일 개발 시작 순서 (필수)
+
+> Docker Desktop을 새로 켰거나, PC를 재부팅한 경우 컨테이너가 내려간 상태입니다.  
+> **반드시 아래 순서로 컨테이너를 먼저 올린 후** `docker compose exec` 명령을 사용하세요.
+
+#### ✅ 방법 A — WSL2 터미널 (권장)
+
+```bash
+# 1. WSL2 터미널(Ubuntu) 열기
+# 2. 프로젝트 폴더로 이동
+cd ~/projects/pcom
+
+# 3. 컨테이너 상태 확인
+docker compose ps
+# → 모든 서비스가 "running" 이면 바로 개발 시작 가능
+# → "exited" 또는 목록이 비어있으면 아래 4번 실행
+
+# 4. 컨테이너 시작 (처음 또는 재시작)
+make up
+# 또는
+docker compose up -d
+
+# 5. 정상 기동 확인 (app / postgres / nginx / redis / reverb)
+docker compose ps
+
+# 6. 필요 시 Artisan 시드 실행
+docker compose exec app php artisan db:seed --class=AdminUserSeeder
+docker compose exec app php artisan db:seed --class=TestAccountsSeeder
+```
+
+> **⚠️ 최초 세팅 또는 소스 동기화 후**: Google 2FA 패키지와 마이그레이션이 새로 추가된 경우 아래 명령을 추가로 실행하세요 (아래 7-1 참고).
+
+#### ✅ 방법 B — Windows PowerShell (WSL2 없이)
+
+WSL2 통합이 안 된 경우, Windows PowerShell에서 `docker compose` 를 직접 실행할 수 있습니다.  
+단, `make` 명령은 사용 불가 — `docker compose` 명령으로 대체합니다.
+
+```powershell
+# 1. PowerShell에서 소스 폴더로 이동 (docker-compose.yml 위치)
+cd D:\2026\pcom\source
+
+# 2. 컨테이너 상태 확인
+docker compose ps
+
+# 3. 컨테이너 시작
+docker compose up -d
+
+# 4. 정상 기동 후 Artisan 명령 실행
+docker compose exec app php artisan migrate
+docker compose exec app php artisan db:seed --class=AdminUserSeeder
+docker compose exec app php artisan db:seed --class=TestAccountsSeeder
+```
+
+> **WSL2 vs PowerShell 비교**
+>
+> | | WSL2 터미널 | Windows PowerShell |
+> |---|---|---|
+> | `make` 명령 | ✅ 사용 가능 | ❌ 불가 (`docker compose` 직접 입력) |
+> | `docker compose` | ✅ (WSL Integration 필요) | ✅ 바로 사용 가능 |
+> | 파일 I/O 속도 | ✅ 빠름 | ⚠️ 느림 (마운트 오버헤드) |
+> | 권장 여부 | ✅ 권장 | 임시 방편 |
+
+---
+
+### 7-1. 관리자 2FA(Google Authenticator) 초기 설정 (최초 1회)
+
+관리자 로그인은 **별도의 `/admin/login` 페이지**를 통해서만 가능하며,  
+Google Authenticator OTP 2단계 인증이 필수입니다.
+
+#### 패키지 설치 및 마이그레이션
+
+```bash
+# 1. Google 2FA TOTP 패키지 설치
+docker compose exec app composer require pragmarx/google2fa
+
+# 2. google2fa 컬럼 마이그레이션 (google2fa_secret, google2fa_enabled)
+docker compose exec app php artisan migrate
+
+# 3. 관리자 이메일이 이미 admin@polit.kr로 생성된 경우 hhpapa77@polit.kr로 업데이트
+docker compose exec app php artisan tinker --execute="App\Models\User::where('is_admin',true)->update(['email'=>'hhpapa77@polit.kr'])"
+
+# 4. (신규 환경) 관리자 시드 실행
+docker compose exec app php artisan db:seed --class=AdminUserSeeder
+```
+
+#### 최초 관리자 로그인 절차
+
+1. 브라우저에서 **`http://localhost/admin/login`** 접속  
+   *(일반 `/login` 페이지로는 관리자 계정 로그인 불가)*
+2. 이메일: `hhpapa77@polit.kr` / 비밀번호: `itweb8335#` 입력 → **다음 단계**
+3. **최초 1회**: QR 코드 화면이 표시됨
+   - 스마트폰에서 **Google Authenticator** 앱 실행
+   - `+` → **QR 코드 스캔** 선택 → 화면의 QR 코드 스캔
+   - 앱에 표시된 6자리 숫자 입력 → **등록 완료 및 로그인**
+4. **이후 로그인부터**: OTP 입력 화면만 표시 (QR 코드 설정 불필요)
+
+> **앱 설치 링크**  
+> - iOS: [App Store](https://apps.apple.com/app/google-authenticator/id388497605)  
+> - Android: [Play Store](https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2)
+
+#### 2FA 관련 주의사항
+
+| 상황 | 조치 |
+|------|------|
+| OTP 코드 오류 | 스마트폰 시계를 자동 설정으로 변경 (시간 동기화 필요) |
+| 앱 삭제 / 기기 교체 | DB에서 `google2fa_enabled = false`로 초기화 후 재등록 |
+| 비밀번호만 바꾸고 싶을 때 | 관리자 패널 `/admin/users` 에서 직접 변경 |
+
+```bash
+# 2FA 초기화 (긴급 재등록 시)
+docker compose exec app php artisan tinker --execute="App\Models\User::where('is_admin',true)->update(['google2fa_enabled'=>false,'google2fa_secret'=>null])"
+```
+
+---
+
+#### Docker Desktop WSL Integration 활성화 (최초 1회)
+
+WSL2 터미널에서 `docker` 명령이 안 보이는 경우:
+
+1. Docker Desktop 실행 → ⚙️ **Settings**
+2. **Resources → WSL Integration**
+3. **"Enable integration with my default WSL distro"** 토글 **ON**
+4. 사용 중인 배포판(Ubuntu-22.04 등) 토글 **ON**
+5. **Apply & Restart** 클릭
+6. WSL2 터미널 **닫고 다시 열기**
+
+---
 
 ### 소스 동기화 (Windows → WSL2)
 
@@ -392,6 +532,11 @@ make npm-dev
 
 # 프로덕션 빌드 (배포 전)
 make npm-build
+
+# ⚠️ npm-build 후 항상 실행 — -u root 필수, storage 소유권 복구
+docker compose exec -u root app bash -c \
+  "chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache && \
+   chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache"
 ```
 
 > **개발 중 권장 워크플로우:**
@@ -408,6 +553,43 @@ make npm-build
 
 ## 8. 자주 발생하는 문제
 
+### Q: `service "app" is not running`
+
+`docker compose exec` 는 **이미 실행 중인 컨테이너**에 명령을 보내는 것입니다.  
+컨테이너가 내려간 상태에서 실행하면 이 오류가 납니다.
+
+```bash
+# ① 먼저 컨테이너 상태 확인
+docker compose ps
+
+# ② 컨테이너 시작 (WSL2에서)
+make up
+# 또는 PowerShell에서
+docker compose up -d   # (D:\2026\pcom\source 폴더에서 실행)
+
+# ③ 컨테이너가 완전히 뜬 후 (약 10초) 원하는 명령 실행
+docker compose exec app php artisan db:seed --class=AdminUserSeeder
+```
+
+> ⚠️ Docker Desktop이 종료되어 있거나 PC 재부팅 후에는 컨테이너가 항상 내려간 상태입니다.  
+> 개발 시작 전 **항상 `make up` (또는 `docker compose up -d`) 을 먼저 실행**하는 습관을 들이세요.
+
+---
+
+### Q: `The command 'docker' could not be found in this WSL 2 distro`
+
+Docker Desktop의 WSL Integration이 비활성화된 상태입니다.
+
+```
+Docker Desktop → Settings → Resources → WSL Integration
+→ Ubuntu-22.04 토글 ON → Apply & Restart
+→ WSL2 터미널 재시작 후 재시도
+```
+
+자세한 내용은 **7-0. 매일 개발 시작 순서** 항목을 참고하세요.
+
+---
+
 ### Q: `docker: Cannot connect to the Docker daemon`
 ```bash
 # Docker Desktop이 실행 중인지 확인
@@ -422,10 +604,53 @@ sudo service postgresql stop   # Ubuntu/WSL2
 ```
 
 ### Q: `Permission denied` — storage 디렉토리
+
+`npm run build` 는 컨테이너 내부에서 root 권한으로 실행되어 `storage/` 소유권이 root로 바뀝니다.  
+**빌드 후 반드시 권한을 복구**해야 하며, 일반 exec로 chown 시 www-data가 root 소유 파일을 변경할 수 없어 실패합니다. 반드시 **`-u root`** 옵션을 사용하세요.
+
+#### ① 현재 소유자 진단
+
 ```bash
-make artisan cmd="storage:link"
-chmod -R 775 storage bootstrap/cache
+docker compose exec app ls -la storage/logs/
+docker compose exec app ls -la storage/framework/views/ | head -5
 ```
+
+#### ② 표준 복구 (`-u root` 필수)
+
+```bash
+docker compose exec -u root app bash -c \
+  "chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache && \
+   chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache"
+```
+
+#### ③ Windows 바인드 마운트 환경에서 chown이 무효인 경우
+
+소스가 `D:\2026\pcom\source`(Windows NTFS)에서 직접 마운트된 경우 `chown` 자체가 적용되지 않습니다.  
+이 경우 777로 모든 사용자에게 쓰기 권한을 줍니다:
+
+```bash
+docker compose exec -u root app chmod -R 777 /var/www/html/storage /var/www/html/bootstrap/cache
+```
+
+#### ④ 컴파일 캐시까지 꼬인 경우 — 캐시 완전 초기화
+
+```bash
+docker compose exec -u root app bash -c \
+  "rm -rf /var/www/html/storage/framework/views/* && \
+   rm -f /var/www/html/storage/logs/laravel.log && \
+   touch /var/www/html/storage/logs/laravel.log && \
+   chown -R www-data:www-data /var/www/html/storage && \
+   chmod -R 775 /var/www/html/storage"
+```
+
+#### ⑤ 스토리지 심볼릭 링크 (최초 1회)
+
+```bash
+docker compose exec app php artisan storage:link
+```
+
+> **정상 복구 확인**: 브라우저 새로고침 후 오류가 사라지면 완료.  
+> 여전히 오류가 나면 ①번 `ls -la` 결과를 확인해 소유자/권한을 직접 파악하세요.
 
 ### Q: Composer 없음
 ```bash
@@ -525,6 +750,50 @@ make npm-dev
 
 ---
 
+### Q: 관리자 로그인 시 `Class "PragmaRX\Google2FA\Google2FA" not found`
+
+`pragmarx/google2fa` 패키지가 설치되지 않은 상태입니다.
+
+```bash
+docker compose exec app composer require pragmarx/google2fa
+```
+
+---
+
+### Q: 관리자가 `/login`(일반 로그인)으로 접속하면?
+
+"관리자 계정은 관리자 전용 로그인 페이지를 이용해주세요." 오류가 표시되며 로그인이 차단됩니다.  
+관리자는 반드시 `/admin/login` 경로로 접속해야 합니다.
+
+---
+
+### Q: 2FA OTP 코드가 계속 틀리다고 나옴
+
+Google Authenticator의 TOTP는 **스마트폰 시계**와 서버 시계가 동기화되어야 합니다.
+
+1. 스마트폰 → 설정 → 날짜 및 시간 → **자동으로 설정** 활성화
+2. Google Authenticator 앱 → 메뉴(⋮) → **시간 수정** → 코드용 동기화
+3. 위 조치 후에도 안 되면 서버 시간 확인:
+```bash
+docker compose exec app date
+```
+
+---
+
+### Q: 2FA 기기를 교체했거나 앱을 삭제해서 OTP를 받을 수 없음
+
+DB에서 2FA를 초기화한 후 새 기기로 재등록합니다.
+
+```bash
+docker compose exec app php artisan tinker --execute="\
+App\Models\User::where('is_admin',true)\
+->update(['google2fa_enabled'=>false,'google2fa_secret'=>null])"
+```
+
+초기화 후 `/admin/login` → 이메일+비밀번호 입력 → QR 코드 재등록 화면이 표시됩니다.
+
+---
+
 ## 9. 개발 환경 vs 운영 환경
 
 | | 로컬 (WSL2 + Docker) | 운영 (Docker) |
@@ -541,4 +810,4 @@ make npm-dev
 
 ---
 
-*최종 수정: 2026-05-23 (make sync / make reinstall 추가)*
+*최종 수정: 2026-06-17 (Permission denied Q&A 전면 개선 — `-u root` 필수, Windows 마운트 대응, 캐시 초기화 단계 추가)*

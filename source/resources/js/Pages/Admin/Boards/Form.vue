@@ -10,7 +10,7 @@ const isEdit = computed(() => !!props.board)
 const form = useForm({
   name: props.board?.name ?? '',
   slug: props.board?.slug ?? '',
-  category: props.board?.category ?? 'azit',
+  board_type: props.board?.board_type ?? 'azit',
   allowed_faction: props.board?.allowed_faction ?? 'all',
   description: props.board?.description ?? '',
   sort_order: props.board?.sort_order ?? 0,
@@ -85,14 +85,15 @@ const submit = () => {
         <div>
           <label class="block text-slate-400 text-xs mb-1.5 font-medium uppercase tracking-wider">카테고리 *</label>
           <select
-            v-model="form.category"
+            v-model="form.board_type"
             class="w-full bg-slate-800 border border-slate-700 text-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:border-violet-500"
           >
             <option value="azit">아지트 (진영 전용)</option>
             <option value="battle">전쟁터 (공용)</option>
+            <option value="playground">놀이터 (자유)</option>
             <option value="notice">공지사항</option>
           </select>
-          <p v-if="form.errors.category" class="text-red-400 text-xs mt-1">{{ form.errors.category }}</p>
+          <p v-if="form.errors.board_type" class="text-red-400 text-xs mt-1">{{ form.errors.board_type }}</p>
         </div>
 
         <!-- Allowed Faction -->

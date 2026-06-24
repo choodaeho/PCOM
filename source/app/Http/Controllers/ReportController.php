@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\PostStatus;
 use App\Models\Comment;
 use App\Models\Post;
 use Illuminate\Http\RedirectResponse;
@@ -44,5 +45,10 @@ class ReportController extends Controller
         ]);
 
         $reportable->increment('report_count');
+
+        // 신고 누적 10건 이상 → 자동 블라인드
+        if ($reportable->report_count >= 10 && $reportable->status === PostStatus::Published) {
+            $reportable->update(['status' => PostStatus::Hidden]);
+        }
     }
 }

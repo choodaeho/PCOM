@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Tailwind v4: 클래스 기반 다크 모드 활성화 */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --color-conservative: #E24B4A;
   --color-moderate:     #7F77DD;
@@ -8,4 +11,8 @@
   --color-dark2:        #1e293b;
 }
 
-body { @apply bg-slate-950 text-slate-100 antialiased; }
+/* 라이트 모드 기본값 */
+body { @apply antialiased bg-gray-50 text-slate-900; }
+
+/* 다크 모드 */
+html.dark body { @apply bg-slate-950 text-slate-100; }

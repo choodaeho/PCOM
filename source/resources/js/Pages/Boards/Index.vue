@@ -7,9 +7,11 @@ import FactionBadge from '@/Components/FactionBadge.vue'
 defineOptions({ layout: AppLayout })
 
 const props = defineProps({
-  azit: Object,           // { id, name, description, post_count }
-  battleBoards: Array,    // [{ id, name, description, post_count }]
-  activePolls: Array,     // [{ id, question, options: [{ id, label, vote_count, faction_counts }] }]
+  azit: Object,              // { id, name, slug, description, post_count } | null
+  battleBoards: Array,       // [{ id, name, slug, description, post_count }]
+  playgroundBoards: Array,   // [{ id, name, slug, description, post_count }]
+  activePolls: Array,        // [{ id, question, options: [{ id, label, vote_count, faction_counts }] }]
+  userFaction: String,       // 'conservative' | 'moderate' | 'progressive' | null
 })
 
 const page = usePage()
@@ -21,7 +23,10 @@ const factionConfig = {
   progressive:  { label: '진보', emoji: '🕊️', color: 'text-blue-400', border: 'border-blue-500/50', bg: 'bg-blue-500/10', btn: 'bg-blue-500 hover:bg-blue-400' },
 }
 
-const myFaction = computed(() => user.value ? (factionConfig[user.value.political_type] ?? null) : null)
+const myFaction = computed(() => {
+  const faction = props.userFaction ?? user.value?.political_type
+  return faction ? (factionConfig[faction] ?? null) : null
+})
 
 // Poll voting
 const pollForm = useForm({ option_id: null })
@@ -51,23 +56,23 @@ const votePercent = (option, options) => {
         <!-- Azit Section -->
         <section class="mb-10">
           <div class="flex items-center gap-3 mb-5">
-            <h2 class="text-xl font-black text-white">🏠 아지트</h2>
-            <span class="text-xs text-slate-500">나의 진영 전용 공간</span>
+            <h2 class="text-xl font-black text-slate-900 dark:text-white">🏠 아지트</h2>
+            <span class="text-xs text-slate-400 dark:text-slate-500">나의 진영 전용 공간</span>
           </div>
 
           <!-- Not logged in -->
-          <div v-if="!user" class="bg-slate-900 border border-slate-800 border-dashed rounded-2xl p-8 text-center">
-            <p class="text-slate-400 mb-4">로그인 후 나의 아지트에 입장할 수 있습니다</p>
+          <div v-if="!user" class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 border-dashed rounded-2xl p-8 text-center">
+            <p class="text-slate-500 dark:text-slate-400 mb-4">로그인 후 나의 아지트에 입장할 수 있습니다</p>
             <Link href="/login" class="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
               로그인하기
             </Link>
           </div>
 
           <!-- No test taken -->
-          <div v-else-if="!azit" class="bg-slate-900 border border-slate-800 border-dashed rounded-2xl p-8 text-center">
+          <div v-else-if="!azit" class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 border-dashed rounded-2xl p-8 text-center">
             <p class="text-4xl mb-4">🧭</p>
-            <p class="text-white font-bold mb-2">아직 진영이 없습니다</p>
-            <p class="text-slate-400 text-sm mb-4">성향 테스트를 통해 나의 진영을 확인하세요</p>
+            <p class="text-slate-900 dark:text-white font-bold mb-2">아직 진영이 없습니다</p>
+            <p class="text-slate-500 dark:text-slate-400 text-sm mb-4">성향 테스트를 통해 나의 진영을 확인하세요</p>
             <Link href="/political-test" class="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
               테스트 시작하기
             </Link>
@@ -83,13 +88,13 @@ const votePercent = (option, options) => {
                 <span class="text-3xl">{{ myFaction?.emoji }}</span>
                 <div>
                   <h3 :class="['text-xl font-black', myFaction?.color]">{{ azit.name }}</h3>
-                  <p class="text-slate-400 text-sm">{{ azit.description }}</p>
+                  <p class="text-slate-600 dark:text-slate-400 text-sm">{{ azit.description }}</p>
                 </div>
               </div>
-              <span class="text-xs text-slate-500">게시글 {{ azit.post_count ?? 0 }}개</span>
+              <span class="text-xs text-slate-400 dark:text-slate-500">게시글 {{ azit.post_count ?? 0 }}개</span>
             </div>
             <Link
-              :href="`/boards/${azit.id}`"
+              :href="`/boards/${azit.slug}`"
               :class="['inline-flex items-center gap-2 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-colors', myFaction?.btn]"
             >
               아지트 입장하기
@@ -101,41 +106,127 @@ const votePercent = (option, options) => {
         </section>
 
         <!-- Battleground Section -->
-        <section>
+        <section class="mb-10">
           <div class="flex items-center gap-3 mb-5">
-            <h2 class="text-xl font-black text-white">⚔️ 전쟁터</h2>
-            <span class="text-xs text-slate-500">모든 진영이 참여하는 토론 공간</span>
+            <h2 class="text-xl font-black text-slate-900 dark:text-white">⚔️ 전쟁터</h2>
+            <span class="text-xs text-slate-400 dark:text-slate-500">모든 진영이 참여하는 토론 공간</span>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Link
               v-for="board in battleBoards"
               :key="board.id"
-              :href="`/boards/${board.id}`"
-              class="block bg-slate-900 border border-slate-800 hover:border-slate-600 rounded-2xl p-5 transition-all hover:-translate-y-0.5 group"
+              :href="`/boards/${board.slug}`"
+              class="block bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 hover:border-gray-300 dark:hover:border-slate-600 rounded-2xl p-5 transition-all hover:-translate-y-0.5 group"
             >
               <div class="flex items-start justify-between mb-3">
-                <h3 class="font-bold text-white group-hover:text-violet-400 transition-colors">{{ board.name }}</h3>
-                <svg class="w-4 h-4 text-slate-600 group-hover:text-violet-400 transition-colors flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <h3 class="font-bold text-slate-900 dark:text-white group-hover:text-violet-400 transition-colors">{{ board.name }}</h3>
+                <svg class="w-4 h-4 text-slate-400 dark:text-slate-600 group-hover:text-violet-400 transition-colors flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                 </svg>
               </div>
               <p class="text-slate-500 text-sm mb-4 line-clamp-2">{{ board.description }}</p>
-              <div class="flex items-center gap-4 text-xs text-slate-600">
+              <div class="flex items-center gap-4 text-xs text-slate-400 dark:text-slate-600">
                 <span class="flex items-center gap-1">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   게시글 {{ board.post_count ?? 0 }}
                 </span>
-                <span class="flex items-center gap-1">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  참여자 {{ board.member_count ?? 0 }}
-                </span>
               </div>
             </Link>
+          </div>
+        </section>
+
+        <!-- Playground Section -->
+        <section>
+          <div class="flex items-center gap-3 mb-5">
+            <h2 class="text-xl font-black text-slate-900 dark:text-white">🎡 놀이터</h2>
+            <span class="text-xs text-slate-400 dark:text-slate-500">정치 무관 — 누구나 자유롭게</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Link
+              v-for="board in playgroundBoards"
+              :key="board.id"
+              :href="`/boards/${board.slug}`"
+              class="block bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 hover:border-emerald-700/40 rounded-2xl p-5 transition-all hover:-translate-y-0.5 group"
+            >
+              <div class="flex items-start justify-between mb-3">
+                <h3 class="font-bold text-slate-900 dark:text-white group-hover:text-emerald-400 transition-colors">{{ board.name }}</h3>
+                <svg class="w-4 h-4 text-slate-400 dark:text-slate-600 group-hover:text-emerald-400 transition-colors flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+              <p class="text-slate-500 text-sm mb-4 line-clamp-2">{{ board.description }}</p>
+              <div class="text-xs text-slate-400 dark:text-slate-600 flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                게시글 {{ board.post_count ?? 0 }}
+              </div>
+            </Link>
+          </div>
+
+        </section>
+
+        <!-- 🧰 툴박스 -->
+        <section class="mt-10">
+          <div class="flex items-center gap-3 mb-5">
+            <h2 class="text-xl font-black text-slate-900 dark:text-white">🧰 툴박스</h2>
+            <span class="text-xs text-slate-400 dark:text-slate-500">누구나 자유롭게 이용</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <!-- 로또번호생성기 - 운영중 -->
+            <Link href="/tools"
+              class="group flex items-center gap-4 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 hover:border-emerald-600/50 hover:bg-emerald-900/10 rounded-2xl p-5 transition-all">
+              <div class="w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-xl flex-shrink-0 group-hover:scale-110 transition-transform">
+                🎰
+              </div>
+              <div class="min-w-0">
+                <p class="text-sm font-bold text-slate-900 dark:text-white group-hover:text-emerald-400 transition-colors">로또번호생성기</p>
+                <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">행운의 번호 뽑기</p>
+                <span class="mt-1.5 inline-block text-xs bg-emerald-500/20 text-emerald-500 dark:text-emerald-400 px-2 py-0.5 rounded-full">운영중</span>
+              </div>
+            </Link>
+
+            <!-- 오늘의 운세 - 운영중 -->
+            <Link href="/tools"
+              class="group flex items-center gap-4 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 hover:border-emerald-600/50 hover:bg-emerald-900/10 rounded-2xl p-5 transition-all">
+              <div class="w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-xl flex-shrink-0 group-hover:scale-110 transition-transform">
+                🔮
+              </div>
+              <div class="min-w-0">
+                <p class="text-sm font-bold text-slate-900 dark:text-white group-hover:text-emerald-400 transition-colors">오늘의 운세</p>
+                <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">띠별 오늘 운세 확인</p>
+                <span class="mt-1.5 inline-block text-xs bg-emerald-500/20 text-emerald-500 dark:text-emerald-400 px-2 py-0.5 rounded-full">운영중</span>
+              </div>
+            </Link>
+
+            <!-- 이상형 월드컵 - 준비중 -->
+            <div class="flex items-center gap-4 bg-gray-50 dark:bg-slate-900/50 border border-gray-200/50 dark:border-slate-800/50 rounded-2xl p-5 opacity-60 cursor-not-allowed select-none">
+              <div class="w-12 h-12 rounded-xl bg-gray-200 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 flex items-center justify-center text-xl flex-shrink-0">
+                🏆
+              </div>
+              <div class="min-w-0">
+                <p class="text-sm font-bold text-slate-500 dark:text-slate-400">이상형 월드컵</p>
+                <p class="text-xs text-slate-400 dark:text-slate-600 mt-0.5">나의 이상형 정치인은?</p>
+                <span class="mt-1.5 inline-block text-xs bg-gray-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 px-2 py-0.5 rounded-full">준비중</span>
+              </div>
+            </div>
+
+            <!-- 시사 퀴즈 - 준비중 -->
+            <div class="flex items-center gap-4 bg-gray-50 dark:bg-slate-900/50 border border-gray-200/50 dark:border-slate-800/50 rounded-2xl p-5 opacity-60 cursor-not-allowed select-none">
+              <div class="w-12 h-12 rounded-xl bg-gray-200 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 flex items-center justify-center text-xl flex-shrink-0">
+                🧩
+              </div>
+              <div class="min-w-0">
+                <p class="text-sm font-bold text-slate-500 dark:text-slate-400">시사 퀴즈</p>
+                <p class="text-xs text-slate-400 dark:text-slate-600 mt-0.5">오늘의 시사 상식 도전</p>
+                <span class="mt-1.5 inline-block text-xs bg-gray-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 px-2 py-0.5 rounded-full">준비중</span>
+              </div>
+            </div>
           </div>
         </section>
       </div>
@@ -143,13 +234,13 @@ const votePercent = (option, options) => {
       <!-- Right: Sidebar -->
       <aside class="hidden lg:block w-80 flex-shrink-0 space-y-6">
         <!-- Active Polls -->
-        <div v-for="poll in activePolls" :key="poll.id" class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-          <div class="px-5 py-4 border-b border-slate-800 flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <h3 class="text-sm font-bold text-white">실시간 투표</h3>
+        <div v-for="poll in activePolls" :key="poll.id" class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+          <div class="px-5 py-4 border-b border-gray-200 dark:border-slate-800 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span>
+            <h3 class="text-sm font-bold text-slate-900 dark:text-white">실시간 투표</h3>
           </div>
           <div class="p-5">
-            <p class="text-slate-300 text-sm font-medium mb-4 leading-snug">{{ poll.question }}</p>
+            <p class="text-slate-600 dark:text-slate-300 text-sm font-medium mb-4 leading-snug">{{ poll.question }}</p>
 
             <div class="space-y-2.5">
               <div v-for="option in poll.options" :key="option.id">
@@ -158,15 +249,15 @@ const votePercent = (option, options) => {
                   :disabled="!!votedPolls[poll.id] || pollForm.processing"
                   class="w-full text-left group"
                 >
-                  <div class="relative h-9 rounded-lg overflow-hidden bg-slate-800">
+                  <div class="relative h-9 rounded-lg overflow-hidden bg-gray-100 dark:bg-slate-800">
                     <!-- Progress bar -->
                     <div
                       class="absolute inset-y-0 left-0 bg-violet-500/20 transition-all duration-700 rounded-lg"
                       :style="{ width: votePercent(option, poll.options) + '%' }"
                     ></div>
                     <div class="absolute inset-0 flex items-center justify-between px-3">
-                      <span class="text-xs text-slate-300 font-medium group-hover:text-white transition-colors">{{ option.label }}</span>
-                      <span class="text-xs text-slate-500 tabular-nums font-bold">{{ votePercent(option, poll.options) }}%</span>
+                      <span class="text-xs text-slate-600 dark:text-slate-300 font-medium group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{{ option.label }}</span>
+                      <span class="text-xs text-slate-400 dark:text-slate-500 tabular-nums font-bold">{{ votePercent(option, poll.options) }}%</span>
                     </div>
                   </div>
                   <!-- Faction breakdown -->
@@ -182,14 +273,14 @@ const votePercent = (option, options) => {
               </div>
             </div>
 
-            <p class="text-xs text-slate-600 mt-3 text-right">총 {{ totalVotes(poll.options).toLocaleString() }}표</p>
+            <p class="text-xs text-slate-400 dark:text-slate-600 mt-3 text-right">총 {{ totalVotes(poll.options).toLocaleString() }}표</p>
           </div>
         </div>
 
         <!-- Faction Score Widget -->
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-          <div class="px-5 py-4 border-b border-slate-800">
-            <h3 class="text-sm font-bold text-white">진영 점수 현황</h3>
+        <div class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+          <div class="px-5 py-4 border-b border-gray-200 dark:border-slate-800">
+            <h3 class="text-sm font-bold text-slate-900 dark:text-white">진영 점수 현황</h3>
           </div>
           <div class="p-5 space-y-3">
             <div v-for="f in Object.entries(factionConfig)" :key="f[0]" class="flex items-center gap-3">
@@ -197,14 +288,14 @@ const votePercent = (option, options) => {
               <div class="flex-1">
                 <div class="flex justify-between text-xs mb-1">
                   <span :class="f[1].color">{{ f[1].label }}</span>
-                  <span class="text-slate-500">-</span>
+                  <span class="text-slate-400 dark:text-slate-500">-</span>
                 </div>
-                <div class="h-1.5 bg-slate-800 rounded-full">
+                <div class="h-1.5 bg-gray-200 dark:bg-slate-800 rounded-full">
                   <div :class="['h-full rounded-full w-0', f[0] === 'conservative' ? 'bg-red-500' : f[0] === 'moderate' ? 'bg-violet-500' : 'bg-blue-500']"></div>
                 </div>
               </div>
             </div>
-            <Link href="/stats" class="block text-center text-xs text-violet-400 hover:text-violet-300 pt-2 transition-colors">
+            <Link href="/stats" class="block text-center text-xs text-violet-500 dark:text-violet-400 hover:text-violet-300 pt-2 transition-colors">
               전체 통계 보기 →
             </Link>
           </div>

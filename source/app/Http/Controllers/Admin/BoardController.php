@@ -17,7 +17,7 @@ class BoardController extends Controller
     public function index(): Response
     {
         return Inertia::render('Admin/Boards/Index', [
-            'boards' => Board::withTrashed()->orderBy('order')->get(),
+            'boards' => Board::withTrashed()->withCount('posts')->orderBy('sort_order')->get(),
         ]);
     }
 
@@ -32,9 +32,9 @@ class BoardController extends Controller
             'name'            => ['required', 'string', 'max:50'],
             'slug'            => ['required', 'regex:/^[a-z0-9\-]+$/', 'unique:boards'],
             'description'     => ['nullable', 'string', 'max:200'],
-            'board_type'      => ['required', 'in:azit,battle,notice'],
+            'board_type'      => ['required', 'in:azit,battle,playground,notice'],
             'allowed_faction' => ['required', 'in:all,conservative,moderate,progressive'],
-            'order'           => ['integer', 'min:0'],
+            'sort_order'      => ['integer', 'min:0'],
             'is_active'       => ['boolean'],
         ]);
 
@@ -53,7 +53,8 @@ class BoardController extends Controller
         $validated = $request->validate([
             'name'        => ['required', 'string', 'max:50'],
             'description' => ['nullable', 'string', 'max:200'],
-            'order'       => ['integer', 'min:0'],
+            'board_type'  => ['sometimes', 'in:azit,battle,playground,notice'],
+            'sort_order'  => ['integer', 'min:0'],
             'is_active'   => ['boolean'],
         ]);
 

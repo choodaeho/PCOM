@@ -15,31 +15,42 @@ class BoardController extends Controller
     /**
      * 게시판 목록 (비로그인 가능).
      *
-     * 로그인한 경우 본인 진영 아지트를 상단에 강조 표시.
-     * 비로그인 시 모든 게시판 노출 (읽기만 가능).
+     * 로그인한 경우 본인 진영 아지트를 단일 객체로 전달.
+     * 비로그인 시 azit = null.
      */
     public function index(Request $request): Response
     {
         $user   = $request->user();
         $boards = Board::query()
             ->where('is_active', true)
-            ->orderBy('order')
+            ->orderBy('sort_order')          // fix: 컬럼명 sort_order (이전 'order' 오타 수정)
             ->get()
             ->groupBy(fn ($b) => $b->board_type->value);
 
-        $azitBoards   = $boards->get('azit', collect())->values();
-        $battleBoards = $boards->get('battle', collect())->values();
-        $noticeBoards = $boards->get('notice', collect())->values();
+        $battleBoards     = $boards->get('battle', collect())->values();
+        $playgroundBoards = $boards->get('playground', collect())->values();
+
+        // 로그인 사용자의 진영 아지트 (단일 게시판)
+        $azit = null;
+        if ($user?->political_type !== null) {
+            $azit = $boards->get('azit', collect())
+                ->first(fn ($b) => $b->allowed_faction === $user->political_type->value);
+        }
+
+        // 활성 여론조사 목록 (최근 3개)
+        $activePolls = Poll::active()
+            ->latest()
+            ->take(3)
+            ->get()
+            ->map(fn ($p) => $p->only(['id', 'question', 'options', 'total_vote_count', 'ends_at']))
+            ->values();
 
         return Inertia::render('Boards/Index', [
-            'azitBoards'    => $azitBoards,
-            'battleBoards'  => $battleBoards,
-            'noticeBoards'  => $noticeBoards,
-            // 로그인 사용자의 진영을 Vue에서 강조 처리에 활용
-            'userFaction'   => $user?->political_type?->value,
-            'activePoll'    => Poll::active()->latest()->first()?->only([
-                'id', 'title', 'options', 'total_vote_count', 'ends_at',
-            ]),
+            'azit'             => $azit,
+            'battleBoards'     => $battleBoards,
+            'playgroundBoards' => $playgroundBoards,
+            'activePolls'      => $activePolls,
+            'userFaction'      => $user?->political_type?->value,
         ]);
     }
 
@@ -54,8 +65,8 @@ class BoardController extends Controller
             ->with(['user:id,nickname,political_type'])
             ->where('status', 'published');
 
-        // 전쟁터에서 진영 필터
-        if ($request->filled('faction') && $board->board_type->value === 'battle') {
+        // 전쟁터/놀이터에서 진영 필터 (선택적)
+        if ($request->filled('faction') && in_array($board->board_type->value, ['battle', 'playground'], true)) {
             $query->where('faction', $request->faction);
         }
 
@@ -68,8 +79,8 @@ class BoardController extends Controller
             'board'   => array_merge(
                 $board->only(['id', 'name', 'slug', 'description']),
                 [
-                    'board_type'      => $board->board_type->value,        // 'azit' | 'battle' | 'notice'
-                    'allowed_faction' => $board->allowed_faction?->value,  // 'conservative' | 'moderate' | 'progressive' | null
+                    'board_type'      => $board->board_type->value,  // 'azit' | 'battle' | 'playground' | 'notice'
+                    'allowed_faction' => $board->allowed_faction,    // fix: plain string, not enum
                 ]
             ),
             'posts'   => $query->paginate(20)->withQueryString(),

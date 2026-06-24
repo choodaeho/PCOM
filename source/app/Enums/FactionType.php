@@ -28,9 +28,9 @@ enum FactionType: string
     public function color(): string
     {
         return match($this) {
-            self::Conservative => '#378ADD', // 파랑
+            self::Conservative => '#E24B4A', // 빨강 (국민의힘 계열)
             self::Moderate     => '#7F77DD', // 보라
-            self::Progressive  => '#E24B4A', // 빨강
+            self::Progressive  => '#378ADD', // 파랑 (민주당 계열)
         };
     }
 
@@ -40,9 +40,9 @@ enum FactionType: string
     public function emoji(): string
     {
         return match($this) {
-            self::Conservative => '🔵',
+            self::Conservative => '🔴',
             self::Moderate     => '🟣',
-            self::Progressive  => '🔴',
+            self::Progressive  => '🔵',
         };
     }
 

@@ -27,9 +27,9 @@ class StatsController extends Controller
         $scores = $this->scoreService->getRealtimeScores();
 
         $factions = [
-            'conservative' => ['label' => '보수', 'emoji' => '🔵', 'color' => '#378ADD'],
+            'conservative' => ['label' => '보수', 'emoji' => '🔴', 'color' => '#E24B4A'],
             'moderate'     => ['label' => '중도', 'emoji' => '🟣', 'color' => '#7F77DD'],
-            'progressive'  => ['label' => '진보', 'emoji' => '🔴', 'color' => '#E24B4A'],
+            'progressive'  => ['label' => '진보', 'emoji' => '🔵', 'color' => '#378ADD'],
         ];
 
         $result = [];

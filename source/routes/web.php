@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Auth\EmailVerificationController;
+use App\Http\Controllers\PostImageController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Auth\RegisterController;
@@ -13,9 +14,11 @@ use App\Http\Controllers\PoliticalTestController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\StatsController;
+use App\Http\Controllers\ToolsController;
 use App\Http\Controllers\VoteController;
 use App\Http\Controllers\PollController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Admin\Auth\AdminLoginController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboard;
 use App\Http\Controllers\Admin\UserController as AdminUser;
 use App\Http\Controllers\Admin\BoardController as AdminBoard;
@@ -23,6 +26,10 @@ use App\Http\Controllers\Admin\PostController as AdminPost;
 use App\Http\Controllers\Admin\ReportController as AdminReport;
 use App\Http\Controllers\Admin\PollController as AdminPoll;
 use App\Http\Controllers\Admin\ScoreWeightController as AdminScoreWeight;
+use App\Http\Controllers\Admin\LegalDocumentController as AdminLegal;
+use App\Http\Controllers\Admin\DeletionRequestAdminController as AdminDeletionRequest;
+use App\Http\Controllers\DeletionRequestController;
+use App\Http\Controllers\LegalController;
 use Illuminate\Support\Facades\Route;
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -30,6 +37,18 @@ use Illuminate\Support\Facades\Route;
 // ═══════════════════════════════════════════════════════════════════════════════
 
 Route::get('/', fn () => inertia('Home'))->name('home');
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 법적 문서 (이용약관 / 개인정보처리방침) — 비로그인 허용
+// ═══════════════════════════════════════════════════════════════════════════════
+
+Route::prefix('/legal')->name('legal.')->group(function () {
+    Route::get('/terms',            [LegalController::class,           'terms'])          ->name('terms');
+    Route::get('/privacy',          [LegalController::class,           'privacy'])         ->name('privacy');
+    Route::get('/youth-protection', [LegalController::class,           'youthProtection'])->name('youth-protection');
+    Route::get('/deletion-request', [DeletionRequestController::class, 'create'])         ->name('deletion-request');
+    Route::post('/deletion-request',[DeletionRequestController::class, 'store'])          ->name('deletion-request.store');
+});
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 인증 (비로그인 전용)
@@ -75,20 +94,31 @@ Route::middleware('auth')->group(function () {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 성향 테스트
-// 조건: 로그인 + 계정 활성
+// 성향 테스트 (비로그인 포함 누구나 접근 가능)
+// 로그인 여부에 따른 저장/비저장 분기는 컨트롤러에서 처리.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-Route::middleware(['auth', 'verified', 'user.active'])->group(function () {
-    Route::get('/political-test', [PoliticalTestController::class, 'show'])
-        ->name('political-test.show');
+Route::get('/political-test', [PoliticalTestController::class, 'show'])
+    ->name('political-test.show');
 
-    Route::post('/political-test', [PoliticalTestController::class, 'submit'])
-        ->name('political-test.submit');
+Route::post('/political-test', [PoliticalTestController::class, 'submit'])
+    ->name('political-test.submit');
 
-    Route::get('/political-test/result', [PoliticalTestController::class, 'result'])
-        ->name('political-test.result');
-});
+Route::get('/political-test/result', [PoliticalTestController::class, 'result'])
+    ->name('political-test.result');
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 툴박스 (비로그인 허용) — 로또번호생성기, 운세 등 유입 기능
+// ═══════════════════════════════════════════════════════════════════════════════
+
+Route::get('/tools', [ToolsController::class, 'index'])->name('tools.index');
+
+// ─────────────────────────────────────────────
+// Quill 에디터 이미지 업로드 (로그인 + 인증 완료 필요)
+// ─────────────────────────────────────────────
+Route::middleware(['auth', 'verified'])
+    ->post('/posts/upload-image', [PostImageController::class, 'upload'])
+    ->name('posts.upload-image');
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 커뮤니티 공개 열람 (비로그인 허용)
@@ -99,7 +129,10 @@ Route::get('/boards', [BoardController::class, 'index'])->name('boards.index');
 
 Route::prefix('/boards/{board:slug}')->group(function () {
     Route::get('/', [BoardController::class, 'show'])->name('boards.show');
-    Route::get('/posts/{post}', [PostController::class, 'show'])->name('posts.show');
+    // {post}는 숫자 ID만 허용 — "create" 같은 문자열은 이 라우트에 매칭되지 않음
+    Route::get('/posts/{post}', [PostController::class, 'show'])
+        ->name('posts.show')
+        ->whereNumber('post');
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -175,11 +208,38 @@ Route::middleware(['auth', 'verified', 'user.active', 'political.test'])->group(
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 관리자 패널
-// 조건: 로그인 + 이메일 인증 + is_admin = true
+// 랭킹 (비로그인 허용)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-Route::middleware(['auth', 'verified', 'user.active', 'admin'])
+Route::prefix('/stats')->name('stats.')->group(function () {
+    Route::get('/ranking', [StatsController::class, 'ranking'])->name('ranking');
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 관리자 인증
+// /admin/login  — 1단계: 이메일 + 비밀번호
+// /admin/login/2fa — 2단계: Google Authenticator OTP
+// ═══════════════════════════════════════════════════════════════════════════════
+
+Route::prefix('/admin')->name('admin.')->group(function () {
+    // 관리자 로그인 폼 / 제출 (로그인 여부 무관)
+    Route::get('/login', [AdminLoginController::class, 'showForm'])->name('login');
+    Route::post('/login', [AdminLoginController::class, 'login'])->name('login.submit');
+
+    // 2FA 폼 / 검증 (1단계 통과 후 세션에 pending_id가 있어야 접근 가능)
+    Route::get('/login/2fa', [AdminLoginController::class, 'show2fa'])->name('login.2fa');
+    Route::post('/login/2fa', [AdminLoginController::class, 'verify2fa'])->name('login.2fa.verify');
+
+    // 로그아웃 (인증 여부 무관 — 로그인 도중 중단도 허용)
+    Route::post('/logout', [AdminLoginController::class, 'logout'])->name('logout');
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 관리자 패널
+// 조건: 로그인 + is_admin = true + Google OTP 2단계 인증 완료 (admin.auth 미들웨어)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+Route::middleware('admin.auth')
     ->prefix('/admin')
     ->name('admin.')
     ->group(function () {
@@ -220,6 +280,7 @@ Route::middleware(['auth', 'verified', 'user.active', 'admin'])
             Route::get('/{report}', [AdminReport::class, 'show'])->name('show');
             Route::post('/{report}/action', [AdminReport::class, 'action'])->name('action');
             Route::post('/{report}/dismiss', [AdminReport::class, 'dismiss'])->name('dismiss');
+            Route::post('/{report}/restore-content', [AdminReport::class, 'restoreContent'])->name('restore-content');
         });
 
         // 실시간 투표 관리
@@ -237,5 +298,24 @@ Route::middleware(['auth', 'verified', 'user.active', 'admin'])
         Route::prefix('/score-weights')->name('score-weights.')->group(function () {
             Route::get('/', [AdminScoreWeight::class, 'index'])->name('index');
             Route::put('/{scoreWeight}', [AdminScoreWeight::class, 'update'])->name('update');
+        });
+
+        // 약관/법적 문서 관리
+        Route::prefix('/legal')->name('legal.')->group(function () {
+            Route::get('/', [AdminLegal::class, 'index'])->name('index');
+            Route::get('/create', [AdminLegal::class, 'create'])->name('create');
+            Route::post('/', [AdminLegal::class, 'store'])->name('store');
+            Route::get('/{legal}/edit', [AdminLegal::class, 'edit'])->name('edit');
+            Route::put('/{legal}', [AdminLegal::class, 'update'])->name('update');
+            Route::post('/{legal}/set-current', [AdminLegal::class, 'setCurrent'])->name('set-current');
+            Route::delete('/{legal}', [AdminLegal::class, 'destroy'])->name('destroy');
+        });
+
+        // 삭제 요청 관리
+        Route::prefix('/deletion-requests')->name('deletion-requests.')->group(function () {
+            Route::get('/', [AdminDeletionRequest::class, 'index'])->name('index');
+            Route::get('/{deletionRequest}', [AdminDeletionRequest::class, 'show'])->name('show');
+            Route::post('/{deletionRequest}/confirm', [AdminDeletionRequest::class, 'confirm'])->name('confirm');
+            Route::post('/{deletionRequest}/restore', [AdminDeletionRequest::class, 'restore'])->name('restore');
         });
     });

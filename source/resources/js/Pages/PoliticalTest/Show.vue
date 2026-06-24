@@ -1,13 +1,14 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useForm } from '@inertiajs/vue3'
+import { Link, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
 defineOptions({ layout: AppLayout })
 
-const props = defineProps({
-  questions: Array,
-})
+const props = defineProps<{
+  questions: Array<any>
+  source?: string | null
+}>()
 
 const currentStep = ref(0)
 const form = useForm({
@@ -46,11 +47,23 @@ const isSelected = (value) => form.answers[currentStep.value].value === value
   <div class="min-h-[calc(100vh-10rem)] flex items-center justify-center px-4 py-12">
     <div class="w-full max-w-2xl">
       <!-- Header -->
+      <!-- 회원가입 경유 배너 -->
+      <div v-if="source === 'register'"
+        class="flex items-center justify-between bg-violet-500/10 border border-violet-500/30 rounded-xl px-4 py-3 mb-6 text-sm">
+        <div class="flex items-center gap-2 text-violet-500 dark:text-violet-300">
+          <span>📝</span>
+          <span>회원가입에서 왔어요 — 테스트 완료 후 결과를 자동 적용할 수 있습니다</span>
+        </div>
+        <Link href="/register" class="text-xs text-slate-500 hover:text-slate-400 transition-colors ml-4 whitespace-nowrap">
+          돌아가기
+        </Link>
+      </div>
+
       <div class="text-center mb-8">
-        <div class="inline-flex items-center gap-2 bg-violet-500/10 border border-violet-500/30 rounded-full px-4 py-1.5 text-violet-400 text-xs font-semibold mb-4">
+        <div class="inline-flex items-center gap-2 bg-violet-500/10 border border-violet-500/30 rounded-full px-4 py-1.5 text-violet-500 dark:text-violet-400 text-xs font-semibold mb-4">
           🧭 정치 성향 테스트
         </div>
-        <h1 class="text-2xl font-black text-white">나의 진영을 찾아라</h1>
+        <h1 class="text-2xl font-black text-slate-900 dark:text-white">나의 진영을 찾아라</h1>
       </div>
 
       <!-- Progress -->
@@ -59,7 +72,7 @@ const isSelected = (value) => form.answers[currentStep.value].value === value
           <span>질문 {{ currentStep + 1 }} / {{ questions.length }}</span>
           <span>{{ Math.round(progress) }}% 완료</span>
         </div>
-        <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
+        <div class="h-2 bg-gray-200 dark:bg-slate-800 rounded-full overflow-hidden">
           <div
             class="h-full bg-gradient-to-r from-violet-600 to-violet-400 rounded-full transition-all duration-500"
             :style="{ width: progress + '%' }"
@@ -75,8 +88,8 @@ const isSelected = (value) => form.answers[currentStep.value].value === value
               i === currentStep
                 ? 'w-6 bg-violet-400'
                 : i < currentStep
-                  ? 'w-1.5 bg-violet-700'
-                  : 'w-1.5 bg-slate-700'
+                  ? 'w-1.5 bg-violet-400 dark:bg-violet-700'
+                  : 'w-1.5 bg-gray-300 dark:bg-slate-700'
             ]"
           ></div>
         </div>
@@ -84,13 +97,13 @@ const isSelected = (value) => form.answers[currentStep.value].value === value
 
       <!-- Question Card -->
       <transition name="slide" mode="out-in">
-        <div :key="currentStep" class="bg-slate-900 border border-slate-800 rounded-2xl p-8">
+        <div :key="currentStep" class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl p-8">
           <!-- Question number badge -->
           <div class="flex items-center gap-3 mb-6">
             <span class="w-8 h-8 rounded-lg bg-violet-500/20 text-violet-400 text-sm font-bold flex items-center justify-center flex-shrink-0">
               {{ currentStep + 1 }}
             </span>
-            <p class="text-white font-bold text-lg leading-snug">{{ current.question }}</p>
+            <p class="text-slate-900 dark:text-white font-bold text-lg leading-snug">{{ current.question }}</p>
           </div>
 
           <!-- Choices -->
@@ -103,7 +116,7 @@ const isSelected = (value) => form.answers[currentStep.value].value === value
                 'w-full flex items-center gap-4 px-5 py-4 rounded-xl border-2 transition-all text-left',
                 isSelected(choice.value)
                   ? choice.color + ' shadow-lg scale-[1.01]'
-                  : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-500 hover:bg-slate-800'
+                  : 'border-gray-300 dark:border-slate-700 bg-gray-100/50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 hover:border-gray-400 dark:hover:border-slate-500 hover:bg-gray-100 dark:hover:bg-slate-800'
               ]"
             >
               <span class="text-xl flex-shrink-0">{{ choice.emoji }}</span>
@@ -123,7 +136,7 @@ const isSelected = (value) => form.answers[currentStep.value].value === value
         <button
           @click="prev"
           :disabled="currentStep === 0"
-          class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-sm font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 border border-gray-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-sm font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
@@ -131,7 +144,7 @@ const isSelected = (value) => form.answers[currentStep.value].value === value
           이전
         </button>
 
-        <span class="text-slate-600 text-xs">
+        <span class="text-slate-400 dark:text-slate-600 text-xs">
           {{ form.answers.filter(a => a.value !== null).length }}/{{ questions.length }} 답변 완료
         </span>
 

@@ -32,10 +32,32 @@ class PoliticalTestService
     }
 
     /**
+     * 응답으로 성향을 계산만 하고 DB에 저장하지 않는다 (비로그인 테스트용).
+     *
+     * @param  array<int, int>  $answers {question_id => selected_value} 맵
+     * @return array{political_type: string, faction_label: string, faction_emoji: string, faction_color: string, score: int, description: null}
+     */
+    public function computeResult(array $answers): array
+    {
+        $questions  = $this->getActiveQuestions();
+        $totalScore = $this->calculateScore($questions, $answers);
+        $faction    = FactionType::fromScore($totalScore);
+
+        return [
+            'political_type' => $faction->value,
+            'faction_label'  => $faction->label(),
+            'faction_emoji'  => $faction->emoji(),
+            'faction_color'  => $faction->color(),
+            'score'          => $totalScore,
+            'description'    => null,
+        ];
+    }
+
+    /**
      * 제출된 응답으로 성향 점수를 계산하고 결과를 저장한다.
      *
      * @param  User                  $user    테스트 제출 사용자
-     * @param  array<int, int>       $answers {question_id: selected_value} 맵
+     * @param  array<int, int>       $answers {question_id => selected_value} 맵
      * @return PoliticalTestSession           저장된 세션 레코드
      *
      * @throws \InvalidArgumentException 응답이 부족한 경우

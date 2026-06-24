@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Middleware\EnsureAdminAuthenticated;
 use App\Http\Middleware\EnsureFactionAccess;
 use App\Http\Middleware\EnsurePoliticalTestCompleted;
 use App\Http\Middleware\EnsureUserIsActive;
@@ -31,8 +32,11 @@ return Application::configure(basePath: dirname(__DIR__))
             // 진영별 게시판 접근 제한
             'faction.access' => EnsureFactionAccess::class,
 
-            // 관리자 전용 접근
+            // 관리자 전용 접근 (is_admin 단순 확인 — 레거시 호환용)
             'admin'          => EnsureUserIsAdmin::class,
+
+            // 관리자 패널 통합 인증 (로그인 + is_admin + 2FA 세션 모두 확인)
+            'admin.auth'     => EnsureAdminAuthenticated::class,
         ]);
 
         // -----------------------------------------------------------------

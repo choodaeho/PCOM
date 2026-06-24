@@ -28,6 +28,14 @@ class LoginController extends Controller
             $request->session()->regenerate();
             $user = Auth::user();
 
+            // 관리자 계정은 일반 로그인 페이지 사용 불가 → 관리자 전용 페이지로 안내
+            if ($user->is_admin) {
+                Auth::logout();
+                return back()->withErrors([
+                    'email' => '관리자 계정은 관리자 전용 로그인 페이지를 이용해주세요.',
+                ])->with('admin_redirect', true);
+            }
+
             if (!$user->isActive()) {
                 Auth::logout();
                 return back()->withErrors(['email' => '계정이 정지되었거나 비활성 상태입니다.']);

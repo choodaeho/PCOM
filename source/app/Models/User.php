@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\FactionType;
 use App\Enums\UserStatus;
+use App\Enums\UserType;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use App\Models\UserBadge;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -33,13 +35,19 @@ class User extends Authenticatable implements MustVerifyEmail
         'title',
         'is_admin',
         'admin_role',
+        'user_type',
         'suspended_until',
+        'google2fa_secret',
+        'google2fa_enabled',
+        'level',
+        'experience_points',
     ];
 
     protected $hidden = [
         'password',
         'email_verification_token',
         'remember_token',
+        'google2fa_secret',
     ];
 
     protected function casts(): array
@@ -47,12 +55,17 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'political_type'      => FactionType::class,
             'status'              => UserStatus::class,
+            'user_type'           => UserType::class,
             'test_score'          => 'integer',
             'manner_score'        => 'integer',
             'is_admin'            => 'boolean',
             'email_verified_at'   => 'datetime',
             'test_completed_at'   => 'datetime',
             'suspended_until'     => 'datetime',
+            'google2fa_secret'    => 'encrypted',
+            'google2fa_enabled'   => 'boolean',
+            'level'               => 'integer',
+            'experience_points'   => 'integer',
         ];
     }
 
@@ -100,6 +113,11 @@ class User extends Authenticatable implements MustVerifyEmail
     public function pollVotes(): HasMany
     {
         return $this->hasMany(PollVote::class);
+    }
+
+    public function badges(): HasMany
+    {
+        return $this->hasMany(UserBadge::class);
     }
 
     // -------------------------------------------------------------------------

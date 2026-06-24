@@ -98,6 +98,14 @@ class Board extends Model
     }
 
     /**
+     * 놀이터 게시판인지 여부.
+     */
+    public function isPlayground(): bool
+    {
+        return $this->board_type === BoardType::Playground;
+    }
+
+    /**
      * 특정 사용자가 이 게시판에 접근 가능한지 확인.
      */
     public function isAccessibleBy(User $user): bool

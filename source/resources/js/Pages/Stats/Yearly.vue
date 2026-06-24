@@ -56,21 +56,21 @@ const globalMax = Math.max(...allScores, 1)
         <div class="flex items-center justify-between mb-8">
             <div>
                 <div class="flex items-center gap-3 mb-1">
-                    <Link href="/stats" class="text-slate-400 hover:text-white text-sm transition-colors">← 통계 개요</Link>
-                    <span class="text-slate-600">|</span>
-                    <h1 class="text-2xl font-bold text-white">연간 진영 점수</h1>
+                    <Link href="/stats" class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-sm transition-colors">← 통계 개요</Link>
+                    <span class="text-slate-400 dark:text-slate-600">|</span>
+                    <h1 class="text-2xl font-bold text-slate-900 dark:text-white">연간 진영 점수</h1>
                 </div>
-                <p class="text-slate-400 text-sm">최근 {{ years }}년 연간 진영 총점 및 챔피언 기록</p>
+                <p class="text-slate-500 dark:text-slate-400 text-sm">최근 {{ years }}년 연간 진영 총점 및 챔피언 기록</p>
             </div>
             <div class="flex items-center gap-2">
-                <span class="text-slate-400 text-sm">기간:</span>
+                <span class="text-slate-500 dark:text-slate-400 text-sm">기간:</span>
                 <div class="flex gap-1">
                     <button
                         v-for="y in yearOptions" :key="y"
                         @click="selectedYears = y; changePeriod()"
                         :class="[
                             'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
-                            selectedYears === y ? 'bg-violet-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
+                            selectedYears === y ? 'bg-violet-600 text-white' : 'bg-gray-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white'
                         ]"
                     >{{ y }}년</button>
                 </div>
@@ -78,18 +78,18 @@ const globalMax = Math.max(...allScores, 1)
         </div>
 
         <!-- 연도별 카드 -->
-        <div v-if="yearlyRows.length === 0" class="text-center text-slate-500 py-20 bg-slate-900 rounded-xl border border-slate-800">
+        <div v-if="yearlyRows.length === 0" class="text-center text-slate-400 dark:text-slate-500 py-20 bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800">
             집계된 연간 데이터가 없습니다.
         </div>
 
         <div v-else class="space-y-4">
             <div v-for="row in yearlyRows" :key="row.year"
-                 class="bg-slate-900 rounded-xl border border-slate-800 p-6">
+                 class="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-6">
                 <!-- 연도 헤더 -->
                 <div class="flex items-center justify-between mb-5">
-                    <h2 class="text-xl font-bold text-white">{{ row.year }}년</h2>
+                    <h2 class="text-xl font-bold text-slate-900 dark:text-white">{{ row.year }}년</h2>
                     <div v-if="getChampionFaction(row)">
-                        <span class="text-xs text-slate-400 mr-2">연간 챔피언:</span>
+                        <span class="text-xs text-slate-500 dark:text-slate-400 mr-2">연간 챔피언:</span>
                         <span :class="[
                             'text-sm font-bold px-3 py-1 rounded-full',
                             factionConfig[getChampionFaction(row)].textClass,
@@ -112,13 +112,13 @@ const globalMax = Math.max(...allScores, 1)
                                 {{ (row[faction] ?? 0).toLocaleString() }}점
                             </span>
                         </div>
-                        <div class="h-3 bg-slate-800 rounded-full overflow-hidden">
+                        <div class="h-3 bg-gray-200 dark:bg-slate-800 rounded-full overflow-hidden">
                             <div
                                 :class="['h-full rounded-full transition-all', cfg.barClass]"
                                 :style="{ width: ((row[faction] ?? 0) / globalMax * 100) + '%' }"
                             ></div>
                         </div>
-                        <div v-if="row[`${faction}_champion`]" class="mt-0.5 text-xs text-slate-500">
+                        <div v-if="row[`${faction}_champion`]" class="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
                             MVP: {{ row[`${faction}_champion`] }}
                         </div>
                     </div>

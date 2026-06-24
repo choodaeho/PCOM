@@ -40,6 +40,13 @@ const reasonLabel = {
   other: '기타',
 }
 const targetLabel = { post: '게시글', comment: '댓글', user: '사용자' }
+
+const restoreContent = (id) => {
+  if (!confirm('이 콘텐츠를 복구하시겠습니까?')) return
+  router.post(`/admin/reports/${id}/restore-content`, {}, { preserveScroll: true })
+}
+const isAutoBlinded = (report) =>
+  report.reportable_count >= 10 && report.reportable_status === 'hidden'
 </script>
 
 <template>
@@ -85,9 +92,14 @@ const targetLabel = { post: '게시글', comment: '댓글', user: '사용자' }
         <tbody class="divide-y divide-slate-800">
           <tr v-for="report in reports.data" :key="report.id" class="hover:bg-slate-800/30 transition-colors">
             <td class="px-4 py-3">
-              <span class="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-medium">
-                {{ reasonLabel[report.reason] ?? report.reason }}
-              </span>
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-medium">
+                  {{ reasonLabel[report.reason] ?? report.reason }}
+                </span>
+                <span v-if="isAutoBlinded(report)" class="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-900/30 text-rose-400 border border-rose-800/50">
+                  자동블라인드
+                </span>
+              </div>
             </td>
             <td class="px-4 py-3">
               <span class="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">
@@ -105,6 +117,10 @@ const targetLabel = { post: '게시글', comment: '댓글', user: '사용자' }
               <div v-if="activeTab === 'pending'" class="flex items-center gap-3">
                 <button @click="openAction(report, 'actioned')" class="text-orange-400 hover:text-orange-300 text-xs transition-colors">처리</button>
                 <button @click="openAction(report, 'dismissed')" class="text-slate-400 hover:text-slate-300 text-xs transition-colors">기각</button>
+                <button v-if="report.reportable_status === 'hidden'" @click="restoreContent(report.id)"
+                  class="text-xs px-3 py-1.5 rounded-lg bg-emerald-900/30 hover:bg-emerald-900/50 text-emerald-400 border border-emerald-800/50 transition-colors">
+                  복구
+                </button>
               </div>
               <div v-else>
                 <span class="text-xs text-slate-600">{{ report.admin_note ? '메모 있음' : '-' }}</span>

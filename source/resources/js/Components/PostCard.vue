@@ -28,18 +28,18 @@ const formatDate = (dateStr) => {
 <template>
     <Link
         :href="`/boards/${boardSlug}/posts/${post.id}`"
-        class="group flex items-start gap-4 bg-slate-900 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 rounded-xl px-5 py-4 transition-all"
+        class="group flex items-start gap-4 bg-white dark:bg-slate-900 hover:bg-gray-100/80 dark:hover:bg-slate-800/80 border border-gray-200 dark:border-slate-800 hover:border-gray-300 dark:hover:border-slate-700 rounded-xl px-5 py-4 transition-all"
     >
         <!-- Left: main content -->
         <div class="flex-1 min-w-0">
             <div class="flex items-start gap-2 mb-2 flex-wrap">
-                <h3 class="text-sm font-semibold text-slate-200 group-hover:text-white transition-colors line-clamp-1 flex-1">
+                <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors line-clamp-1 flex-1">
                     {{ post.title }}
                 </h3>
             </div>
 
             <!-- Meta row -->
-            <div class="flex items-center gap-3 flex-wrap text-xs text-slate-500">
+            <div class="flex items-center gap-3 flex-wrap text-xs text-slate-400 dark:text-slate-500">
                 <div class="flex items-center gap-1.5">
                     <span>{{ post.is_anonymous ? '익명' : (post.user?.nickname ?? '알 수 없음') }}</span>
                     <FactionBadge
@@ -47,13 +47,13 @@ const formatDate = (dateStr) => {
                         :type="post.faction"
                     />
                 </div>
-                <span class="text-slate-700">·</span>
+                <span class="text-gray-300 dark:text-slate-700">·</span>
                 <span>{{ formatDate(post.created_at) }}</span>
             </div>
         </div>
 
         <!-- Right: stats -->
-        <div class="flex items-center gap-3 text-xs text-slate-500 flex-shrink-0 mt-0.5">
+        <div class="flex items-center gap-3 text-xs text-slate-400 dark:text-slate-500 flex-shrink-0 mt-0.5">
             <!-- 추천 수 -->
             <span :class="[
                 'flex items-center gap-1',

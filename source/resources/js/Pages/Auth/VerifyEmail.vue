@@ -28,17 +28,17 @@ const verificationSent = computed(() => form.recentlySuccessful)
         📧
       </div>
 
-      <h1 class="text-3xl font-black text-white mb-4">이메일 인증 필요</h1>
+      <h1 class="text-3xl font-black text-slate-900 dark:text-white mb-4">이메일 인증 필요</h1>
 
-      <p class="text-slate-400 text-sm leading-relaxed mb-2">
+      <p class="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-2">
         가입하신 이메일 주소로 인증 메일을 발송했습니다.
       </p>
-      <p class="text-slate-300 text-sm font-medium mb-8">
+      <p class="text-slate-700 dark:text-slate-300 text-sm font-medium mb-8">
         {{ user?.email }}
       </p>
 
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 mb-6">
-        <ol class="text-left space-y-3 text-sm text-slate-400">
+      <div class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl p-6 mb-6">
+        <ol class="text-left space-y-3 text-sm text-slate-500 dark:text-slate-400">
           <li class="flex items-start gap-3">
             <span class="flex-shrink-0 w-6 h-6 rounded-full bg-violet-500/20 text-violet-400 text-xs flex items-center justify-center font-bold mt-0.5">1</span>
             이메일 받은 편지함을 확인하세요
@@ -81,13 +81,13 @@ const verificationSent = computed(() => form.recentlySuccessful)
           href="/logout"
           method="post"
           as="button"
-          class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-medium py-3 px-4 rounded-xl transition-colors text-sm"
+          class="w-full bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 border border-gray-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-medium py-3 px-4 rounded-xl transition-colors text-sm"
         >
           로그아웃
         </Link>
       </div>
 
-      <p class="text-slate-600 text-xs mt-6">
+      <p class="text-slate-400 dark:text-slate-600 text-xs mt-6">
         스팸 메일함도 확인해 보세요.
       </p>
     </div>

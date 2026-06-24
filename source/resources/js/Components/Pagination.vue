@@ -21,7 +21,7 @@ const isEllipsis = (label) => label === '...'
     <template v-if="prevLink?.url">
       <Link
         :href="prevLink.url"
-        class="flex items-center gap-1 px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-600 text-slate-400 hover:text-white text-sm transition-colors"
+        class="flex items-center gap-1 px-3 py-2 rounded-lg bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:border-gray-400 dark:hover:border-slate-600 text-gray-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-sm transition-colors"
         preserve-scroll
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -32,7 +32,7 @@ const isEllipsis = (label) => label === '...'
     </template>
     <span
       v-else
-      class="flex items-center gap-1 px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-600 text-sm cursor-not-allowed"
+      class="flex items-center gap-1 px-3 py-2 rounded-lg bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-400 dark:text-slate-600 text-sm cursor-not-allowed"
     >
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
@@ -60,7 +60,7 @@ const isEllipsis = (label) => label === '...'
       <Link
         v-else-if="link.url"
         :href="link.url"
-        class="px-3.5 py-2 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-600 text-slate-400 hover:text-white text-sm transition-colors min-w-[2.25rem] text-center"
+        class="px-3.5 py-2 rounded-lg bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:border-gray-400 dark:hover:border-slate-600 text-gray-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-sm transition-colors min-w-[2.25rem] text-center"
         preserve-scroll
       >
         {{ link.label }}
@@ -69,7 +69,7 @@ const isEllipsis = (label) => label === '...'
       <!-- Disabled -->
       <span
         v-else
-        class="px-3.5 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-600 text-sm min-w-[2.25rem] text-center cursor-not-allowed"
+        class="px-3.5 py-2 rounded-lg bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-400 dark:text-slate-600 text-sm min-w-[2.25rem] text-center cursor-not-allowed"
       >
         {{ link.label }}
       </span>
@@ -79,7 +79,7 @@ const isEllipsis = (label) => label === '...'
     <template v-if="nextLink?.url">
       <Link
         :href="nextLink.url"
-        class="flex items-center gap-1 px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-600 text-slate-400 hover:text-white text-sm transition-colors"
+        class="flex items-center gap-1 px-3 py-2 rounded-lg bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:border-gray-400 dark:hover:border-slate-600 text-gray-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-sm transition-colors"
         preserve-scroll
       >
         다음
@@ -90,7 +90,7 @@ const isEllipsis = (label) => label === '...'
     </template>
     <span
       v-else
-      class="flex items-center gap-1 px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-600 text-sm cursor-not-allowed"
+      class="flex items-center gap-1 px-3 py-2 rounded-lg bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-400 dark:text-slate-600 text-sm cursor-not-allowed"
     >
       다음
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

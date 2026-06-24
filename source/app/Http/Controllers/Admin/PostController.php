@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdminActionLog;
+use App\Models\Board;
 use App\Models\Post;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,7 +17,7 @@ class PostController extends Controller
 {
     public function index(Request $request): Response
     {
-        $query = Post::withTrashed()->with(['user:id,nickname', 'board:id,name,slug'])->latest();
+        $query = Post::withTrashed()->with(['user:id,nickname', 'board:id,name,slug'])->withCount('reports')->latest();
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -33,6 +34,7 @@ class PostController extends Controller
         return Inertia::render('Admin/Posts/Index', [
             'posts'   => $query->paginate(20)->withQueryString(),
             'filters' => $request->only(['status', 'faction', 'search']),
+            'boards'  => Board::orderBy('sort_order')->get(['id', 'name']),
         ]);
     }
 

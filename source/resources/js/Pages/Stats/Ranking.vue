@@ -26,6 +26,11 @@ const categories = [
         label: '😇 매너왕',
         desc:  '게시글을 1개 이상 작성한 사용자 중 매너 점수가 높은 순위입니다. 기본 100점에서 시작하며, 다른 진영으로부터 추천을 받으면 +1점, 같은 진영으로부터 비추천을 받으면 −1점, 신고·삭제 처리 확정 시 −10점입니다.',
     },
+    {
+        key:   'level',
+        label: '🏆 레벨왕',
+        desc:  '경험치(XP)를 가장 많이 쌓은 사용자 순위입니다. 전쟁터 활동은 XP가 높고(게시글 +20, 댓글 +5), 아지트는 중간(+10/+3), 놀이터는 낮습니다(+5/+2). 동일 레벨은 XP 순으로 정렬됩니다.',
+    },
 ]
 
 const factions = [
@@ -52,6 +57,7 @@ const rankEmoji = (rank) => {
 const statValue = (user) => {
     if (props.category === 'votes')  return user.total_votes.toLocaleString() + ' 추천'
     if (props.category === 'manner') return user.manner_score + '점'
+    if (props.category === 'level')  return `Lv.${user.level ?? 1} · ${(user.experience_points ?? 0).toLocaleString()} XP`
     return user.post_count.toLocaleString() + ' 게시글'
 }
 </script>
@@ -128,8 +134,14 @@ const statValue = (user) => {
                     class="bg-white dark:bg-slate-900 p-5 text-center"
                 >
                     <p class="text-3xl mb-2">{{ rankEmoji(user.rank) }}</p>
-                    <div class="w-12 h-12 rounded-full mx-auto flex items-center justify-center text-xl mb-2"
-                        :style="{ backgroundColor: user.faction_color }">
+                    <!-- 레벨 탭은 아바타를 더 크게 -->
+                    <div
+                        :class="[
+                            'rounded-full mx-auto flex items-center justify-center mb-2',
+                            category === 'level' ? 'w-16 h-16 text-3xl' : 'w-12 h-12 text-xl'
+                        ]"
+                        :style="{ backgroundColor: user.faction_color }"
+                    >
                         {{ user.level_emoji ?? '🌱' }}
                     </div>
                     <p class="font-bold text-sm text-gray-900 dark:text-white truncate">{{ user.nickname }}</p>

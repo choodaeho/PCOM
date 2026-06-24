@@ -269,6 +269,12 @@ class StatsController extends Controller
                             ->whereHas('posts', fn ($q) => $q->where('status', 'published'))
                             ->orderByDesc('manner_score')
                             ->limit(50)->get(),
+            // 레벨왕: 레벨 내림차순, 동일 레벨은 XP 내림차순
+            'level'  => (clone $base)
+                            ->where('level', '>', 1)
+                            ->orderByDesc('level')
+                            ->orderByDesc('experience_points')
+                            ->limit(50)->get(),
             // 게시글왕: 게시글 1개 이상 작성한 사용자만
             default  => (clone $base)
                             ->whereHas('posts', fn ($q) => $q->where('status', 'published'))

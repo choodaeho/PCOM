@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Board;
 use App\Models\Poll;
+use App\Services\UserLevelService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -62,7 +63,7 @@ class BoardController extends Controller
     public function show(Request $request, Board $board): Response
     {
         $query = $board->posts()
-            ->with(['user:id,nickname,political_type'])
+            ->with(['user:id,nickname,political_type,level'])
             ->where('status', 'published');
 
         // 전쟁터/놀이터에서 진영 필터 (선택적)
@@ -83,7 +84,13 @@ class BoardController extends Controller
                     'allowed_faction' => $board->allowed_faction,    // fix: plain string, not enum
                 ]
             ),
-            'posts'   => $query->paginate(20)->withQueryString(),
+            'posts'   => $query->paginate(20)->withQueryString()->through(function ($post) {
+                if ($post->user) {
+                    $lv = $post->user->level ?? 1;
+                    $post->user->level_emoji = UserLevelService::LEVELS[$lv]['emoji'] ?? '🌱';
+                }
+                return $post;
+            }),
             'filters' => $request->only(['sort', 'faction']),
         ]);
     }

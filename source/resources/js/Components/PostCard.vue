@@ -41,6 +41,12 @@ const formatDate = (dateStr) => {
             <!-- Meta row -->
             <div class="flex items-center gap-3 flex-wrap text-xs text-slate-400 dark:text-slate-500">
                 <div class="flex items-center gap-1.5">
+                    <!-- 레벨 이모지 (익명 제외) -->
+                    <span
+                        v-if="!post.is_anonymous && post.user?.level_emoji"
+                        class="leading-none"
+                        :title="`Lv.${post.user?.level ?? 1}`"
+                    >{{ post.user.level_emoji }}</span>
                     <span>{{ post.is_anonymous ? '익명' : (post.user?.nickname ?? '알 수 없음') }}</span>
                     <FactionBadge
                         v-if="showFaction && post.faction && !post.is_anonymous"

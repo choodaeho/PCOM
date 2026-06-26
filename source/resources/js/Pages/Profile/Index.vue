@@ -1,8 +1,9 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import FactionBadge from '@/Components/FactionBadge.vue'
+import LevelXpContent from '@/Components/LevelXpContent.vue'
 
 defineOptions({ layout: AppLayout })
 
@@ -73,7 +74,7 @@ const heatColor = (count) => {
     return 'bg-violet-300'
 }
 
-// 배지 전체 목록 (순서 고정, 30개)
+// 배지 전체 목록 (순서 고정, 32개)
 const ALL_BADGES = [
     // 게시글
     { key: 'first_post',    emoji: '🌱', name: '첫 걸음',       desc: '게시글 1개 이상 작성' },
@@ -107,10 +108,12 @@ const ALL_BADGES = [
     { key: 'manner_150',    emoji: '🕊️', name: '매너왕',        desc: '매너 점수 150점 이상' },
     { key: 'manner_200',    emoji: '🙏', name: '성인군자',      desc: '매너 점수 200점 이상' },
     // 레벨
-    { key: 'level3',        emoji: '📰', name: '논객 입문',     desc: '레벨 3 달성' },
-    { key: 'level5',        emoji: '⚡', name: '중견 논객',     desc: '레벨 5 달성' },
-    { key: 'level7',        emoji: '📣', name: '시니어 논객',   desc: '레벨 7 달성' },
-    { key: 'legend',        emoji: '👑', name: '전설',          desc: '레벨 10 달성' },
+    { key: 'level5',        emoji: '📰', name: '논객의 길',     desc: '레벨 5 달성' },
+    { key: 'level10',       emoji: '⚔️', name: '전사의 증명',   desc: '레벨 10 달성' },
+    { key: 'level15',       emoji: '🌟', name: '스타의 반열',   desc: '레벨 15 달성' },
+    { key: 'level20',       emoji: '⭐', name: '슈퍼스타',      desc: '레벨 20 달성' },
+    { key: 'level25',       emoji: '🦋', name: '각성',          desc: '레벨 25 달성' },
+    { key: 'level30',       emoji: '👑', name: '폴릿의 신',     desc: '레벨 30 달성' },
     // 특수
     { key: 'view_star',     emoji: '👁️', name: '조회 스타',     desc: '총 조회수 10,000 이상' },
     { key: 'all_rounder',   emoji: '🌈', name: '올라운더',      desc: '아지트·전쟁터·놀이터 모두 게시글 1개 이상' },
@@ -132,6 +135,48 @@ const badgesWithStatus = computed(() =>
 )
 
 const awardedCount = computed(() => props.badges.length)
+
+// 레벨 XP 아코디언
+const showLevelInfo = ref(false)
+
+const XP_LEVELS = [
+    // 입문
+    { emoji: '🌱', name: '새싹',      xp: '0' },
+    { emoji: '🌿', name: '풀잎',      xp: '100' },
+    { emoji: '📖', name: '견습생',    xp: '250' },
+    { emoji: '🔍', name: '탐색자',    xp: '500' },
+    { emoji: '📰', name: '논객',      xp: '900' },
+    // 성장
+    { emoji: '🎙️', name: '웅변가',    xp: '1,400' },
+    { emoji: '⚡', name: '활동가',    xp: '2,100' },
+    { emoji: '🔥', name: '열혈당원',  xp: '3,000' },
+    { emoji: '📣', name: '대변인',    xp: '4,200' },
+    { emoji: '⚔️', name: '전사',      xp: '5,800' },
+    // 중견
+    { emoji: '🗡️', name: '베테랑',    xp: '8,000' },
+    { emoji: '🛡️', name: '수호자',    xp: '11,000' },
+    { emoji: '🦅', name: '선봉대',    xp: '15,000' },
+    { emoji: '💎', name: '정예',      xp: '20,000' },
+    { emoji: '🌟', name: '스타',      xp: '27,000' },
+    // 고수
+    { emoji: '🔮', name: '전략가',    xp: '36,000' },
+    { emoji: '🦁', name: '진영 리더', xp: '47,500' },
+    { emoji: '👁️', name: '감시자',    xp: '62,000' },
+    { emoji: '🏆', name: '챔피언',    xp: '80,000' },
+    { emoji: '⭐', name: '슈퍼스타',  xp: '103,000' },
+    // 엘리트
+    { emoji: '🌙', name: '야전대장',  xp: '132,000' },
+    { emoji: '☀️', name: '빛의 전사', xp: '170,000' },
+    { emoji: '🌊', name: '파도',      xp: '218,000' },
+    { emoji: '🏔️', name: '철옹성',    xp: '280,000' },
+    { emoji: '🦋', name: '각성자',    xp: '360,000' },
+    // 전설
+    { emoji: '🔱', name: '신화',      xp: '462,000' },
+    { emoji: '💫', name: '초월자',    xp: '593,000' },
+    { emoji: '🌌', name: '우주',      xp: '760,000' },
+    { emoji: '🌠', name: '불꽃 전설', xp: '975,000' },
+    { emoji: '👑', name: '폴릿의 신', xp: '1,250,000' },
+]
 </script>
 
 <template>
@@ -139,23 +184,28 @@ const awardedCount = computed(() => props.badges.length)
         <!-- 프로필 헤더 -->
         <div
             :class="[
-                'rounded-2xl border border-gray-200 dark:border-slate-800 p-8 mb-6 bg-gradient-to-br',
+                'rounded-2xl border border-gray-200 dark:border-slate-800 p-5 sm:p-8 mb-6 bg-gradient-to-br',
                 user?.political_type ? factionConfig[user.political_type]?.bgGradient : 'from-gray-100 to-white dark:from-slate-800 dark:to-slate-900'
             ]"
         >
-            <div class="flex items-start justify-between">
-                <div class="flex items-center gap-5">
-                    <!-- 아바타 (레벨 이모지) -->
-                    <div
-                        class="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl"
-                        :style="{ backgroundColor: user?.political_type ? factionConfig[user.political_type]?.color : '#475569' }"
-                    >
-                        {{ user?.level_emoji ?? '🌱' }}
-                    </div>
+            <!-- ① 아바타 + 기본 정보 + 수정 버튼 -->
+            <div class="flex items-start gap-4">
+                <!-- 아바타 -->
+                <div
+                    class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl flex-shrink-0"
+                    :style="{ backgroundColor: user?.political_type ? factionConfig[user.political_type]?.color : '#475569' }"
+                >
+                    {{ user?.level_emoji ?? '🌱' }}
+                </div>
 
-                    <div>
-                        <div class="flex items-center gap-3 mb-2">
-                            <h1 class="text-2xl font-bold text-slate-900 dark:text-white">{{ user?.nickname }}</h1>
+                <!-- 텍스트 정보 -->
+                <div class="flex-1 min-w-0">
+                    <!-- 닉네임 + 진영 + 수정 버튼 한 줄 -->
+                    <div class="flex items-start justify-between gap-2 mb-1">
+                        <div class="flex flex-wrap items-center gap-2 min-w-0">
+                            <h1 class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white leading-tight">
+                                {{ user?.nickname }}
+                            </h1>
                             <FactionBadge
                                 v-if="user?.political_type"
                                 :type="user.political_type"
@@ -163,53 +213,85 @@ const awardedCount = computed(() => props.badges.length)
                                 :emoji="user.faction_emoji"
                             />
                         </div>
-                        <p class="text-slate-500 dark:text-slate-400 text-sm mb-2">{{ user?.email }}</p>
-                        <div class="flex items-center gap-2 mb-3">
-                            <span class="text-xs text-slate-400 dark:text-slate-500">매너 점수</span>
-                            <span :class="['text-sm font-bold', mannerColor]">{{ user?.manner_score ?? 0 }}점</span>
-                            <span class="text-xs text-slate-400 dark:text-slate-500">{{ mannerLabel }}</span>
-                        </div>
+                        <!-- 수정 버튼: 항상 우측 상단 고정 -->
+                        <Link
+                            href="/profile/edit"
+                            class="flex-shrink-0 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-colors border border-gray-300 dark:border-slate-700 whitespace-nowrap"
+                        >
+                            프로필 수정
+                        </Link>
+                    </div>
 
-                        <!-- 레벨 & XP 진행 바 -->
-                        <div class="pt-3 border-t border-gray-200/70 dark:border-slate-700/70">
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="text-base leading-none">{{ user?.level_emoji ?? '🌱' }}</span>
-                                <span class="font-bold text-slate-800 dark:text-slate-200 text-sm">
-                                    Lv.{{ user?.level ?? 1 }} {{ user?.level_name }}
-                                </span>
-                                <span v-if="user?.next_level_xp == null"
-                                    class="text-xs font-bold text-amber-500 ml-1">👑 MAX</span>
-                            </div>
-                            <template v-if="user?.next_level_xp != null">
-                                <div class="flex justify-between text-[11px] text-slate-400 dark:text-slate-500 mb-1.5">
-                                    <span>{{ (user?.experience_points ?? 0).toLocaleString() }} XP</span>
-                                    <span>다음 레벨 {{ user?.next_level_xp?.toLocaleString() }} XP</span>
-                                </div>
-                                <div class="w-full h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                                    <div
-                                        class="h-full bg-violet-500 rounded-full transition-all duration-700"
-                                        :style="{
-                                            width: `${Math.min(100, Math.max(0, Math.round(
-                                                ((user.experience_points - user.current_level_xp) /
-                                                (user.next_level_xp - user.current_level_xp)) * 100
-                                            )))}%`
-                                        }"
-                                    />
-                                </div>
-                            </template>
-                            <div v-else class="text-xs text-amber-500 font-semibold">
-                                최고 레벨 달성 — {{ (user?.experience_points ?? 0).toLocaleString() }} XP
-                            </div>
-                        </div>
+                    <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm truncate mb-2">{{ user?.email }}</p>
+
+                    <!-- 매너 점수 -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-400 dark:text-slate-500">매너 점수</span>
+                        <span :class="['text-sm font-bold', mannerColor]">{{ user?.manner_score ?? 0 }}점</span>
+                        <span class="text-xs text-slate-400 dark:text-slate-500">{{ mannerLabel }}</span>
                     </div>
                 </div>
+            </div>
 
-                <Link
-                    href="/profile/edit"
-                    class="bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-sm px-4 py-2 rounded-lg transition-colors border border-gray-300 dark:border-slate-700"
+            <!-- ② 레벨 & XP 영역 (헤더 하단, 전체 너비) -->
+            <div class="mt-4 pt-4 border-t border-gray-200/70 dark:border-slate-700/70">
+                <!-- 레벨 행 + 아코디언 토글 -->
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-base leading-none">{{ user?.level_emoji ?? '🌱' }}</span>
+                    <span class="font-bold text-slate-800 dark:text-slate-200 text-sm">
+                        Lv.{{ user?.level ?? 1 }} {{ user?.level_name }}
+                    </span>
+                    <span v-if="user?.next_level_xp == null" class="text-xs font-bold text-amber-500">👑 MAX</span>
+                    <!-- XP 가이드 아코디언 토글 -->
+                    <button
+                        @click="showLevelInfo = !showLevelInfo"
+                        class="ml-auto flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 hover:text-violet-600 dark:hover:text-violet-400 transition-colors py-0.5 px-2 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-900/20"
+                    >
+                        XP 가이드
+                        <svg
+                            :class="['w-3 h-3 transition-transform duration-200', showLevelInfo ? 'rotate-180' : '']"
+                            fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"
+                        >
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- XP 진행 바 -->
+                <template v-if="user?.next_level_xp != null">
+                    <div class="flex justify-between text-[11px] text-slate-400 dark:text-slate-500 mb-1.5">
+                        <span>{{ (user?.experience_points ?? 0).toLocaleString() }} XP</span>
+                        <span>다음 레벨 {{ user?.next_level_xp?.toLocaleString() }} XP</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <div
+                            class="h-full bg-violet-500 rounded-full transition-all duration-700"
+                            :style="{
+                                width: `${Math.min(100, Math.max(0, Math.round(
+                                    ((user.experience_points - user.current_level_xp) /
+                                    (user.next_level_xp - user.current_level_xp)) * 100
+                                )))}%`
+                            }"
+                        />
+                    </div>
+                </template>
+                <div v-else class="text-xs text-amber-500 font-semibold">
+                    최고 레벨 달성 — {{ (user?.experience_points ?? 0).toLocaleString() }} XP
+                </div>
+
+                <!-- 아코디언 패널 (XP 가이드) -->
+                <transition
+                    enter-active-class="transition-all duration-200 ease-out"
+                    enter-from-class="opacity-0 max-h-0"
+                    enter-to-class="opacity-100 max-h-[600px]"
+                    leave-active-class="transition-all duration-150 ease-in"
+                    leave-from-class="opacity-100 max-h-[600px]"
+                    leave-to-class="opacity-0 max-h-0"
                 >
-                    프로필 수정
-                </Link>
+                    <div v-if="showLevelInfo" class="mt-3 pt-3 border-t border-gray-200/60 dark:border-slate-700/60 overflow-hidden">
+                        <LevelXpContent :xp-levels="XP_LEVELS" :current-level-name="user?.level_name" />
+                    </div>
+                </transition>
             </div>
         </div>
 

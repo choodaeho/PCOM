@@ -260,7 +260,7 @@ watch(() => [props.periodData, props.currentPeriod], () => setTimeout(drawChart,
           </div>
 
           <!-- 보충 설명 -->
-          <div class="text-xs text-gray-400 dark:text-slate-500 space-y-1 border-t border-gray-100 dark:border-slate-700 pt-3 mb-5">
+          <div class="text-xs text-gray-400 dark:text-slate-500 space-y-1 border-t border-gray-100 dark:border-slate-700 pt-3">
             <p>• 영향력 점수는 <strong class="text-gray-500 dark:text-slate-400">진영 활성 사용자 수</strong>로 나누어 정규화합니다. 소수 정예 진영도 공정하게 평가됩니다.</p>
             <p>• <strong class="text-gray-500 dark:text-slate-400">놀이터</strong> 게시판의 활동(게시글·댓글·추천 등)은 정치적 성격이 없으므로 집계에서 제외됩니다.</p>
             <p>• 점수는 <strong class="text-gray-500 dark:text-slate-400">매일 00:05</strong>에 전날 활동을 기준으로 집계됩니다.</p>
@@ -268,61 +268,6 @@ watch(() => [props.periodData, props.currentPeriod], () => setTimeout(drawChart,
             <p>• <strong class="text-gray-500 dark:text-slate-400">매너 점수</strong>는 기본 100점. <strong class="text-gray-500 dark:text-slate-400">다른 진영</strong>으로부터 추천 +1점, <strong class="text-gray-500 dark:text-slate-400">같은 진영</strong>으로부터 비추천 −1점, 신고·삭제 처리 확정 시 −10점. 상한 없음.</p>
           </div>
 
-          <!-- 레벨 XP 안내 -->
-          <p class="text-xs font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-2">🎮 레벨 경험치(XP) 획득 방식</p>
-          <p class="text-xs text-gray-400 dark:text-slate-500 mb-3">활동 게시판에 따라 XP가 차등 부여됩니다. 정치적 토론에 적극 참여할수록 빠르게 성장합니다.</p>
-
-          <div class="grid grid-cols-3 gap-2 mb-4">
-            <div v-for="board in [
-              { icon: '⚔️', label: '전쟁터', post: 20, comment: 5, cls: 'border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30' },
-              { icon: '🏠', label: '아지트', post: 10, comment: 3, cls: 'border-violet-200 dark:border-violet-900 bg-violet-50 dark:bg-violet-950/30' },
-              { icon: '🎮', label: '놀이터', post: 5,  comment: 2, cls: 'border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50' },
-            ]" :key="board.label"
-              :class="['rounded-xl border p-3 text-center', board.cls]"
-            >
-              <p class="text-lg mb-1">{{ board.icon }}</p>
-              <p class="text-xs font-bold text-gray-700 dark:text-slate-300 mb-2">{{ board.label }}</p>
-              <div class="space-y-1">
-                <div class="flex justify-between text-[11px]">
-                  <span class="text-gray-500 dark:text-slate-400">📝 게시글</span>
-                  <span class="font-black text-emerald-600 dark:text-emerald-400">+{{ board.post }} XP</span>
-                </div>
-                <div class="flex justify-between text-[11px]">
-                  <span class="text-gray-500 dark:text-slate-400">💬 댓글</span>
-                  <span class="font-black text-emerald-600 dark:text-emerald-400">+{{ board.comment }} XP</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="flex items-center gap-3 bg-gray-50 dark:bg-slate-800 rounded-xl px-4 py-2.5 mb-4">
-            <span class="text-base">👍</span>
-            <span class="text-xs text-gray-600 dark:text-slate-300">받은 추천 1개당</span>
-            <span class="ml-auto font-black text-emerald-600 dark:text-emerald-400 text-sm">+2 XP</span>
-            <span class="text-xs text-gray-400 dark:text-slate-500">(게시판 무관)</span>
-          </div>
-
-          <p class="text-xs font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-2">레벨 구간</p>
-          <div class="grid grid-cols-5 gap-1.5">
-            <div v-for="lv in [
-              { emoji: '🌱', name: '새싹',      xp: '0' },
-              { emoji: '📖', name: '견습생',    xp: '150' },
-              { emoji: '📰', name: '논객',      xp: '400' },
-              { emoji: '🎙️', name: '웅변가',    xp: '800' },
-              { emoji: '⚡', name: '활동가',    xp: '1,400' },
-              { emoji: '🔥', name: '열혈당원',  xp: '2,200' },
-              { emoji: '📣', name: '대변인',    xp: '3,200' },
-              { emoji: '⚔️', name: '행동대장',  xp: '4,500' },
-              { emoji: '🦁', name: '진영 리더', xp: '6,000' },
-              { emoji: '👑', name: '전설',      xp: '8,000' },
-            ]" :key="lv.name"
-              class="flex flex-col items-center gap-0.5 bg-gray-50 dark:bg-slate-800 rounded-lg py-2 px-1 text-center"
-            >
-              <span class="text-base leading-none">{{ lv.emoji }}</span>
-              <span class="text-[10px] font-semibold text-gray-700 dark:text-slate-300 leading-tight">{{ lv.name }}</span>
-              <span class="text-[10px] text-gray-400 dark:text-slate-500">{{ lv.xp }}+</span>
-            </div>
-          </div>
         </div>
       </transition>
     </div>

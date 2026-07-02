@@ -20,9 +20,8 @@ class CommentController extends Controller
     public function store(Request $request, Board $board, Post $post): RedirectResponse
     {
         $validated = $request->validate([
-            'content'      => ['required', 'string', 'min:2', 'max:2000'],
-            'parent_id'    => ['nullable', 'integer', 'exists:comments,id'],
-            'is_anonymous' => ['boolean'],
+            'content'   => ['required', 'string', 'min:2', 'max:2000'],
+            'parent_id' => ['nullable', 'integer', 'exists:comments,id'],
         ]);
 
         if ($validated['parent_id'] ?? false) {
@@ -35,7 +34,7 @@ class CommentController extends Controller
             'faction'      => $request->user()->political_type->value,
             'content'      => $validated['content'],
             'parent_id'    => $validated['parent_id'] ?? null,
-            'is_anonymous' => $validated['is_anonymous'] ?? false,
+            'is_anonymous' => false,
         ]);
 
         $this->levelService->syncUser($request->user());

@@ -66,12 +66,12 @@ const changePeriod = () => {
 <template>
     <div class="max-w-7xl mx-auto px-4 py-8">
         <!-- 헤더 -->
-        <div class="flex items-center justify-between mb-8">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8">
             <div>
-                <div class="flex items-center gap-3 mb-1">
+                <div class="flex items-center gap-2 flex-wrap mb-1">
                     <Link href="/stats" class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-sm transition-colors">← 통계 개요</Link>
                     <span class="text-slate-400 dark:text-slate-600">|</span>
-                    <h1 class="text-2xl font-bold text-slate-900 dark:text-white">일간 진영 점수</h1>
+                    <h1 class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">일간 진영 점수</h1>
                 </div>
                 <p class="text-slate-500 dark:text-slate-400 text-sm">최근 {{ days }}일간 진영별 활동 점수 추이</p>
             </div>
@@ -95,22 +95,22 @@ const changePeriod = () => {
         </div>
 
         <!-- 최신 점수 카드 -->
-        <div class="grid grid-cols-3 gap-4 mb-8">
+        <div class="grid grid-cols-3 gap-2 sm:gap-4 mb-8">
             <div
                 v-for="(cfg, faction) in factionConfig" :key="faction"
-                :class="['rounded-xl p-5 border', cfg.bgClass, cfg.borderClass]"
+                :class="['rounded-xl p-3 sm:p-5 border', cfg.bgClass, cfg.borderClass]"
             >
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="text-xl">{{ cfg.emoji }}</span>
-                    <span :class="['font-semibold text-sm', cfg.textClass]">{{ cfg.label }}</span>
+                <div class="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+                    <span class="text-base sm:text-xl">{{ cfg.emoji }}</span>
+                    <span :class="['font-semibold text-xs sm:text-sm', cfg.textClass]">{{ cfg.label }}</span>
                 </div>
-                <div class="text-3xl font-bold text-slate-900 dark:text-white mb-1">
-                    {{ latestScores[faction]?.normalized_score?.toFixed(2) ?? latestScores[faction]?.raw_score?.toFixed(0) ?? '-' }}
+                <div class="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white mb-1 tabular-nums">
+                    {{ latestScores[faction]?.normalized_score?.toFixed(1) ?? latestScores[faction]?.raw_score?.toFixed(0) ?? '-' }}
                 </div>
-                <div class="text-xs text-slate-500 dark:text-slate-400">{{ formatDate(latestScores[faction]?.stat_date) || '데이터 없음' }}</div>
-                <div class="mt-3 text-xs text-slate-400 dark:text-slate-500 space-y-0.5">
-                    <div>게시글: {{ latestScores[faction]?.post_count ?? 0 }}개</div>
-                    <div>추천: {{ latestScores[faction]?.vote_count ?? 0 }}개</div>
+                <div class="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">{{ formatDate(latestScores[faction]?.stat_date) || '없음' }}</div>
+                <div class="mt-2 sm:mt-3 text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 space-y-0.5">
+                    <div>게시글: {{ latestScores[faction]?.post_count ?? 0 }}</div>
+                    <div>추천: {{ latestScores[faction]?.vote_count ?? 0 }}</div>
                 </div>
             </div>
         </div>

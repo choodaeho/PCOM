@@ -2,7 +2,6 @@
 import { ref, computed, watch } from 'vue'
 import { Link, useForm, usePage, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import FactionBadge from '@/Components/FactionBadge.vue'
 
 defineOptions({ layout: AppLayout })
 
@@ -15,6 +14,23 @@ const props = defineProps({
 
 const page = usePage()
 const user = computed(() => page.props.auth?.user)
+
+// 놀이터 게시판 여부 — false이면 진영 배경 표시
+const isPlayground = computed(() => props.board?.board_type === 'playground')
+
+// 진영별 배경 pill 색상 (PostCard와 동일)
+const factionBgClass = {
+    conservative: 'bg-red-500/15 border border-red-500/30 text-red-700 dark:text-red-300',
+    moderate:     'bg-violet-500/15 border border-violet-500/30 text-violet-700 dark:text-violet-400',
+    progressive:  'bg-blue-500/15 border border-blue-500/30 text-blue-700 dark:text-blue-300',
+}
+
+// 아바타 배경색 (진영 색상 반영)
+const avatarBgClass = {
+    conservative: 'bg-red-500/20 text-red-700 dark:text-red-300',
+    moderate:     'bg-violet-500/20 text-violet-700 dark:text-violet-400',
+    progressive:  'bg-blue-500/20 text-blue-700 dark:text-blue-300',
+}
 
 // ─────────────────────────────────────────────
 // 추천/비추천 (게시글)
@@ -91,7 +107,7 @@ const submitReport = () => {
 // ─────────────────────────────────────────────
 // 댓글
 // ─────────────────────────────────────────────
-const commentForm = useForm({ content: '', parent_id: null, is_anonymous: false })
+const commentForm = useForm({ content: '', parent_id: null })
 const replyTo     = ref(null)
 
 const submitComment = () => {
@@ -183,10 +199,9 @@ const submitCommentReport = (id) => {
 // ─────────────────────────────────────────────
 const formatDate = (dateStr) => {
     if (!dateStr) return ''
-    return new Date(dateStr).toLocaleString('ko-KR', {
-        year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', minute: '2-digit',
-    })
+    const d   = new Date(dateStr)
+    const pad = (n) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
 // post.comments 는 Post::comments() 관계가 whereNull('parent_id') 이므로
@@ -228,23 +243,33 @@ const isOwner = computed(() => user.value && user.value.id === props.post.user_i
         <!-- Post Article -->
         <article class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl overflow-hidden mb-6">
             <!-- Post Header -->
-            <div class="p-6 border-b border-gray-200 dark:border-slate-800">
-                <h1 class="text-2xl font-black text-slate-900 dark:text-white mb-4 leading-snug">{{ post.title }}</h1>
+            <div class="p-4 sm:p-6 border-b border-gray-200 dark:border-slate-800">
+                <h1 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-4 leading-snug">{{ post.title }}</h1>
                 <div class="flex items-center justify-between flex-wrap gap-3">
                     <div class="flex items-center gap-3">
-                        <!-- Avatar -->
-                        <div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300">
-                            {{ post.is_anonymous ? '?' : (post.user?.nickname?.[0]?.toUpperCase() ?? '?') }}
-                        </div>
                         <div>
                             <div class="flex items-center gap-2">
-                                <span class="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                                    {{ post.is_anonymous ? '익명' : (post.user?.nickname ?? '알 수 없음') }}
+                                <!-- 익명 -->
+                                <span v-if="post.is_anonymous" class="text-sm font-semibold text-slate-800 dark:text-slate-200">익명</span>
+
+                                <!-- 진영 배경 pill: 레벨이모지 + 닉네임 (놀이터 제외) -->
+                                <span
+                                    v-else-if="!isPlayground && post.faction"
+                                    :class="[
+                                        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-semibold',
+                                        factionBgClass[post.faction] ?? 'bg-slate-200/60 border border-slate-300 text-slate-700 dark:bg-slate-700/60 dark:border-slate-600 dark:text-slate-300'
+                                    ]"
+                                    :title="`${post.faction === 'conservative' ? '보수' : post.faction === 'moderate' ? '중도' : '진보'} · Lv.${post.user?.level ?? 1}`"
+                                >
+                                    <span v-if="post.user?.level_emoji" class="leading-none text-[15px]">{{ post.user.level_emoji }}</span>
+                                    {{ post.user?.nickname ?? '알 수 없음' }}
                                 </span>
-                                <FactionBadge
-                                    v-if="post.faction && !post.is_anonymous"
-                                    :type="post.faction"
-                                />
+
+                                <!-- 놀이터: 무채색 pill -->
+                                <span v-else class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-semibold bg-slate-100 border border-slate-200 text-slate-700 dark:bg-slate-800/60 dark:border-slate-700 dark:text-slate-300">
+                                    <span v-if="post.user?.level_emoji" class="leading-none text-[15px]">{{ post.user.level_emoji }}</span>
+                                    {{ post.user?.nickname ?? '알 수 없음' }}
+                                </span>
                             </div>
                             <p class="text-xs text-slate-500 dark:text-slate-500">{{ formatDate(post.created_at) }}</p>
                         </div>
@@ -268,13 +293,13 @@ const isOwner = computed(() => user.value && user.value.id === props.post.user_i
             </div>
 
             <!-- Post Content (Quill HTML 렌더링) -->
-            <div class="p-6">
-                <div class="ql-content prose-polit text-slate-700 dark:text-slate-300 leading-relaxed text-[15px]"
+            <div class="p-4 sm:p-6">
+                <div class="ql-content prose-polit text-slate-700 dark:text-slate-300 leading-relaxed text-[15px] sm:text-base"
                      v-html="post.content"></div>
             </div>
 
             <!-- Vote / Actions -->
-            <div class="px-6 py-4 border-t border-gray-200 dark:border-slate-800 flex items-center justify-between flex-wrap gap-3">
+            <div class="px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-slate-800 flex items-center justify-between flex-wrap gap-3">
                 <!-- Vote buttons: 본인 글이면 비활성 안내, 타인 글이면 투표 가능 -->
                 <div class="flex items-center gap-2">
                     <template v-if="user && !isOwner">
@@ -448,15 +473,7 @@ const isOwner = computed(() => user.value && user.value.id === props.post.user_i
                         required
                     ></textarea>
                     <p v-if="commentForm.errors.content" class="text-xs text-red-400 mt-1">{{ commentForm.errors.content }}</p>
-                    <div class="flex items-center justify-between mt-3">
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                v-model="commentForm.is_anonymous"
-                                class="w-3.5 h-3.5 rounded border-gray-400 dark:border-slate-600 bg-gray-100 dark:bg-slate-800 text-violet-500 focus:ring-violet-500"
-                            />
-                            <span class="text-xs text-slate-500 dark:text-slate-400">익명으로 작성</span>
-                        </label>
+                    <div class="flex items-center justify-end mt-3">
                         <button
                             type="submit"
                             :disabled="commentForm.processing"
@@ -487,22 +504,27 @@ const isOwner = computed(() => user.value && user.value.id === props.post.user_i
                     <div class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl p-5">
                         <!-- Comment Header -->
                         <div class="flex items-start justify-between mb-3">
-                            <div class="flex items-center gap-2.5">
-                                <div class="w-7 h-7 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 flex-shrink-0">
-                                    {{ comment.is_anonymous ? '?' : (comment.user?.nickname?.[0]?.toUpperCase() ?? '?') }}
-                                </div>
-                                <div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                                            {{ comment.is_anonymous ? '익명' : (comment.user?.nickname ?? '알 수 없음') }}
-                                        </span>
-                                        <FactionBadge
-                                            v-if="comment.user?.political_type && !comment.is_anonymous"
-                                            :type="comment.user.political_type"
-                                        />
-                                    </div>
-                                    <p class="text-xs text-slate-500 dark:text-slate-500">{{ formatDate(comment.created_at) }}</p>
-                                </div>
+                            <div class="flex flex-col gap-0.5">
+                                <!-- 진영 배경 pill (놀이터 제외, 익명 제외) -->
+                                <span
+                                    v-if="!isPlayground && !comment.is_anonymous && comment.user?.political_type"
+                                    :class="[
+                                        'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold w-fit',
+                                        factionBgClass[comment.user.political_type] ?? 'bg-slate-500/10 border border-slate-500/30 text-slate-600 dark:text-slate-400'
+                                    ]"
+                                    :title="`${comment.user.political_type === 'conservative' ? '보수' : comment.user.political_type === 'moderate' ? '중도' : '진보'} · Lv.${comment.user?.level ?? 1}`"
+                                >
+                                    <span v-if="comment.user?.level_emoji" class="leading-none">{{ comment.user.level_emoji }}</span>
+                                    {{ comment.user?.nickname ?? '알 수 없음' }}
+                                </span>
+                                <!-- 익명 -->
+                                <span v-else-if="comment.is_anonymous" class="text-sm font-semibold text-slate-800 dark:text-slate-200">익명</span>
+                                <!-- 놀이터: 무채색 pill -->
+                                <span v-else class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold w-fit bg-slate-100 border border-slate-200 text-slate-700 dark:bg-slate-800/60 dark:border-slate-700 dark:text-slate-300">
+                                    <span v-if="comment.user?.level_emoji" class="leading-none">{{ comment.user.level_emoji }}</span>
+                                    {{ comment.user?.nickname ?? '알 수 없음' }}
+                                </span>
+                                <p class="text-xs text-slate-500 dark:text-slate-500">{{ formatDate(comment.created_at) }}</p>
                             </div>
                             <!-- 답글 버튼: 로그인 시에만 -->
                             <button
@@ -518,10 +540,10 @@ const isOwner = computed(() => user.value && user.value.id === props.post.user_i
                         </div>
 
                         <!-- Comment Body -->
-                        <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed pl-9">{{ comment.content }}</p>
+                        <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">{{ comment.content }}</p>
 
                         <!-- Comment Actions (추천/비추천/신고) -->
-                        <div class="flex items-center gap-2 pl-9 mt-3">
+                        <div class="flex items-center gap-2 mt-3">
                             <!-- 추천 -->
                             <button
                                 v-if="user && comment.user_id !== user.id"
@@ -569,7 +591,7 @@ const isOwner = computed(() => user.value && user.value.id === props.post.user_i
 
                         <!-- Comment Report Form -->
                         <transition name="slide">
-                            <div v-if="reportingCommentId === comment.id" class="mt-3 ml-9 bg-gray-100 dark:bg-slate-800/50 rounded-xl p-4 border border-gray-300 dark:border-slate-700">
+                            <div v-if="reportingCommentId === comment.id" class="mt-3 bg-gray-100 dark:bg-slate-800/50 rounded-xl p-4 border border-gray-300 dark:border-slate-700">
                                 <form @submit.prevent="submitCommentReport(comment.id)">
                                     <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">신고 사유를 선택하세요</p>
                                     <div class="grid grid-cols-2 gap-1.5 mb-3">
@@ -622,28 +644,37 @@ const isOwner = computed(() => user.value && user.value.id === props.post.user_i
                             class="bg-gray-50 dark:bg-slate-900/60 border border-gray-200 dark:border-slate-800 rounded-xl p-4"
                         >
                             <!-- Reply Header -->
-                            <div class="flex items-center gap-2 mb-2">
+                            <div class="flex items-center gap-2 mb-2 flex-wrap">
                                 <svg class="w-3.5 h-3.5 text-gray-300 dark:text-slate-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                                 </svg>
-                                <div class="w-6 h-6 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 flex-shrink-0">
-                                    {{ reply.is_anonymous ? '?' : (reply.user?.nickname?.[0]?.toUpperCase() ?? '?') }}
-                                </div>
-                                <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                                    {{ reply.is_anonymous ? '익명' : (reply.user?.nickname ?? '알 수 없음') }}
+                                <!-- 진영 배경 pill (놀이터 제외, 익명 제외) -->
+                                <span
+                                    v-if="!isPlayground && !reply.is_anonymous && reply.user?.political_type"
+                                    :class="[
+                                        'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold',
+                                        factionBgClass[reply.user.political_type] ?? 'bg-slate-500/10 border border-slate-500/30 text-slate-600 dark:text-slate-400'
+                                    ]"
+                                    :title="`${reply.user.political_type === 'conservative' ? '보수' : reply.user.political_type === 'moderate' ? '중도' : '진보'} · Lv.${reply.user?.level ?? 1}`"
+                                >
+                                    <span v-if="reply.user?.level_emoji" class="leading-none">{{ reply.user.level_emoji }}</span>
+                                    {{ reply.user?.nickname ?? '알 수 없음' }}
                                 </span>
-                                <FactionBadge
-                                    v-if="reply.user?.political_type && !reply.is_anonymous"
-                                    :type="reply.user.political_type"
-                                />
+                                <!-- 익명 -->
+                                <span v-else-if="reply.is_anonymous" class="text-xs font-semibold text-slate-600 dark:text-slate-300">익명</span>
+                                <!-- 놀이터: 무채색 pill -->
+                                <span v-else class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 border border-slate-200 text-slate-700 dark:bg-slate-800/60 dark:border-slate-700 dark:text-slate-300">
+                                    <span v-if="reply.user?.level_emoji" class="leading-none">{{ reply.user.level_emoji }}</span>
+                                    {{ reply.user?.nickname ?? '알 수 없음' }}
+                                </span>
                                 <span class="text-xs text-gray-300 dark:text-slate-600 ml-auto">{{ formatDate(reply.created_at) }}</span>
                             </div>
 
                             <!-- Reply Body -->
-                            <p class="text-slate-600 dark:text-slate-400 text-sm leading-relaxed pl-8">{{ reply.content }}</p>
+                            <p class="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">{{ reply.content }}</p>
 
                             <!-- Reply Actions (추천/비추천/신고) -->
-                            <div class="flex items-center gap-2 pl-8 mt-2">
+                            <div class="flex items-center gap-2 mt-2">
                                 <button
                                     v-if="user && reply.user_id !== user.id"
                                     @click="voteComment(reply, 'up')"
@@ -688,7 +719,7 @@ const isOwner = computed(() => user.value && user.value.id === props.post.user_i
 
                             <!-- Reply Report Form -->
                             <transition name="slide">
-                                <div v-if="reportingCommentId === reply.id" class="mt-2 ml-8 bg-gray-100 dark:bg-slate-800/50 rounded-xl p-3 border border-gray-300 dark:border-slate-700">
+                                <div v-if="reportingCommentId === reply.id" class="mt-2 bg-gray-100 dark:bg-slate-800/50 rounded-xl p-3 border border-gray-300 dark:border-slate-700">
                                     <form @submit.prevent="submitCommentReport(reply.id)">
                                         <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">신고 사유를 선택하세요</p>
                                         <div class="grid grid-cols-2 gap-1.5 mb-2">

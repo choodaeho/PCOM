@@ -45,13 +45,12 @@ const mannerLabel = computed(() => {
     return '⚠️ 주의 필요'
 })
 
-// 히트맵: 최근 30일 날짜별 활동
+// ── 히트맵 ──────────────────────────────────────────────────────────
 const activityMap = computed(() => {
     const map = {}
     props.activityByDay.forEach(r => { map[r.date] = r.count })
     return map
 })
-
 const last30Days = computed(() => {
     const days = []
     for (let i = 29; i >= 0; i--) {
@@ -62,9 +61,7 @@ const last30Days = computed(() => {
     }
     return days
 })
-
 const maxActivity = computed(() => Math.max(1, ...last30Days.value.map(d => d.count)))
-
 const heatColor = (count) => {
     if (count === 0) return 'bg-gray-100 dark:bg-slate-800'
     const ratio = count / maxActivity.value
@@ -74,109 +71,239 @@ const heatColor = (count) => {
     return 'bg-violet-300'
 }
 
-// 배지 전체 목록 (순서 고정, 32개)
-const ALL_BADGES = [
-    // 게시글
-    { key: 'first_post',    emoji: '🌱', name: '첫 걸음',       desc: '게시글 1개 이상 작성' },
-    { key: 'writer_10',     emoji: '📝', name: '활발한 작가',   desc: '게시글 10개 이상 작성' },
-    { key: 'writer_50',     emoji: '✍️', name: '다작가',        desc: '게시글 50개 이상 작성' },
-    { key: 'writer_200',    emoji: '📚', name: '대작가',        desc: '게시글 200개 이상 작성' },
-    { key: 'writer_500',    emoji: '🏛️', name: '전설적 작가',   desc: '게시글 500개 이상 작성' },
-    // 댓글
-    { key: 'first_comment', emoji: '🗨️', name: '첫 댓글',       desc: '댓글 1개 이상 작성' },
-    { key: 'commenter_10',  emoji: '💭', name: '수다 시작',     desc: '댓글 10개 이상 작성' },
-    { key: 'commenter_100', emoji: '💬', name: '수다쟁이',      desc: '댓글 100개 이상 작성' },
-    { key: 'commenter_500', emoji: '🗣️', name: '댓글 마스터',   desc: '댓글 500개 이상 작성' },
-    // 추천
-    { key: 'popular_100',   emoji: '👍', name: '인기인',        desc: '받은 추천 합계 100개 이상' },
-    { key: 'popular_500',   emoji: '⭐', name: '스타',          desc: '받은 추천 합계 500개 이상' },
-    { key: 'popular_1000',  emoji: '🌟', name: '슈퍼스타',      desc: '받은 추천 합계 1,000개 이상' },
-    { key: 'hot_post',      emoji: '🔥', name: '화제의 글',     desc: '단건 게시글 추천 30개 이상' },
-    { key: 'hot_post_50',   emoji: '💥', name: '대박 글',       desc: '단건 게시글 추천 50개 이상' },
-    // 전쟁터
-    { key: 'warrior',       emoji: '⚔️', name: '전사',          desc: '전쟁터 게시글 20개 이상' },
-    { key: 'warrior_50',    emoji: '🗡️', name: '베테랑 전사',   desc: '전쟁터 게시글 50개 이상' },
-    { key: 'warrior_100',   emoji: '🏹', name: '전쟁의 신',     desc: '전쟁터 게시글 100개 이상' },
-    // 아지트
-    { key: 'azit_10',       emoji: '🏠', name: '아지트 단골',   desc: '아지트 게시글 10개 이상' },
-    { key: 'azit_50',       emoji: '🛡️', name: '아지트 수호자', desc: '아지트 게시글 50개 이상' },
-    // 놀이터
-    { key: 'playground_10', emoji: '🎮', name: '놀이터 단골',   desc: '놀이터 게시글 10개 이상' },
-    { key: 'playground_50', emoji: '🎡', name: '놀이터 챔피언', desc: '놀이터 게시글 50개 이상' },
-    // 매너
-    { key: 'manner_130',    emoji: '😇', name: '매너리스트',    desc: '매너 점수 130점 이상' },
-    { key: 'manner_150',    emoji: '🕊️', name: '매너왕',        desc: '매너 점수 150점 이상' },
-    { key: 'manner_200',    emoji: '🙏', name: '성인군자',      desc: '매너 점수 200점 이상' },
-    // 레벨
-    { key: 'level5',        emoji: '📰', name: '논객의 길',     desc: '레벨 5 달성' },
-    { key: 'level10',       emoji: '⚔️', name: '전사의 증명',   desc: '레벨 10 달성' },
-    { key: 'level15',       emoji: '🌟', name: '스타의 반열',   desc: '레벨 15 달성' },
-    { key: 'level20',       emoji: '⭐', name: '슈퍼스타',      desc: '레벨 20 달성' },
-    { key: 'level25',       emoji: '🦋', name: '각성',          desc: '레벨 25 달성' },
-    { key: 'level30',       emoji: '👑', name: '폴릿의 신',     desc: '레벨 30 달성' },
-    // 특수
-    { key: 'view_star',     emoji: '👁️', name: '조회 스타',     desc: '총 조회수 10,000 이상' },
-    { key: 'all_rounder',   emoji: '🌈', name: '올라운더',      desc: '아지트·전쟁터·놀이터 모두 게시글 1개 이상' },
+// ── 레벨 XP 아코디언 ────────────────────────────────────────────────
+const showLevelInfo  = ref(false)
+const showAllBadges  = ref(false)
+
+// 50레벨 XP 가이드 (PHP LEVELS 상수와 동기화)
+const XP_LEVELS = [
+    // 입문
+    { emoji: '🌱', name: '새싹',         xp: '0' },
+    { emoji: '🌿', name: '풀잎',         xp: '150' },
+    { emoji: '📖', name: '견습생',       xp: '400' },
+    { emoji: '🔍', name: '탐색자',       xp: '800' },
+    { emoji: '📰', name: '논객',         xp: '1,500' },
+    // 성장
+    { emoji: '🎙️', name: '웅변가',       xp: '2,600' },
+    { emoji: '⚡',  name: '활동가',       xp: '4,200' },
+    { emoji: '🔥', name: '열혈당원',     xp: '6,500' },
+    { emoji: '📣', name: '대변인',       xp: '10,000' },
+    { emoji: '⚔️', name: '전사',         xp: '15,000' },
+    // 중견
+    { emoji: '🗡️', name: '베테랑',       xp: '22,000' },
+    { emoji: '🛡️', name: '수호자',       xp: '33,000' },
+    { emoji: '🦅', name: '선봉대',       xp: '50,000' },
+    { emoji: '💎', name: '정예',         xp: '75,000' },
+    { emoji: '🌟', name: '스타',         xp: '115,000' },
+    // 고수
+    { emoji: '🔮', name: '전략가',       xp: '175,000' },
+    { emoji: '🦁', name: '진영 리더',    xp: '265,000' },
+    { emoji: '👁️', name: '감시자',       xp: '400,000' },
+    { emoji: '🏆', name: '챔피언',       xp: '610,000' },
+    { emoji: '⭐', name: '슈퍼스타',     xp: '930,000' },
+    // 엘리트
+    { emoji: '🌙', name: '야전대장',     xp: '1,420,000' },
+    { emoji: '☀️', name: '빛의 전사',    xp: '2,170,000' },
+    { emoji: '🌊', name: '파도',         xp: '3,320,000' },
+    { emoji: '🏔️', name: '철옹성',       xp: '5,080,000' },
+    { emoji: '🦋', name: '각성자',       xp: '7,780,000' },
+    // 전설
+    { emoji: '🔱', name: '신화',         xp: '11,900,000' },
+    { emoji: '💫', name: '초월자',       xp: '18,200,000' },
+    { emoji: '🌌', name: '우주',         xp: '27,800,000' },
+    { emoji: '🌠', name: '불꽃 전설',    xp: '42,500,000' },
+    { emoji: '👑', name: '폴릿의 신',    xp: '65,000,000' },
+    // 신화
+    { emoji: '🌋', name: '화산',         xp: '99,000,000' },
+    { emoji: '⚡',  name: '번개왕',       xp: '152,000,000' },
+    { emoji: '🌪️', name: '폭풍의 눈',    xp: '232,000,000' },
+    { emoji: '🌈', name: '여명',         xp: '355,000,000' },
+    { emoji: '🦄', name: '전설의 시작',  xp: '543,000,000' },
+    // 초월
+    { emoji: '💀', name: '심연',         xp: '830,000,000' },
+    { emoji: '🕯️', name: '영겁',         xp: '1,270,000,000' },
+    { emoji: '🔯', name: '각인된 자',    xp: '1,940,000,000' },
+    { emoji: '⚗️', name: '연금술사',     xp: '2,970,000,000' },
+    { emoji: '🌀', name: '차원 이동자',  xp: '4,540,000,000' },
+    // 신계
+    { emoji: '🐉', name: '고룡',         xp: '6,940,000,000' },
+    { emoji: '🦅', name: '창공의 지배자',xp: '10,610,000,000' },
+    { emoji: '🌑', name: '암흑성',       xp: '16,230,000,000' },
+    { emoji: '✨', name: '빛의 화신',    xp: '24,820,000,000' },
+    { emoji: '🌞', name: '태양의 신',    xp: '37,970,000,000' },
+    // 창조주
+    { emoji: '💠', name: '결정체',       xp: '58,080,000,000' },
+    { emoji: '🔮', name: '예언자',       xp: '88,860,000,000' },
+    { emoji: '🌠', name: '별의 화신',    xp: '135,950,000,000' },
+    { emoji: '🪐', name: '행성 지배자',  xp: '207,970,000,000' },
+    { emoji: '👑', name: '창조주',       xp: '318,190,000,000' },
 ]
 
-// 획득한 배지 맵: key → awarded_at
+// ── 배지 카테고리 메타 ───────────────────────────────────────────────
+const BADGE_CATEGORIES = [
+    { key: 'post',       emoji: '📝', name: '게시글' },
+    { key: 'comment',    emoji: '💬', name: '댓글' },
+    { key: 'vote',       emoji: '👍', name: '추천 합계' },
+    { key: 'hot',        emoji: '🔥', name: '단건 추천' },
+    { key: 'battle',     emoji: '⚔️', name: '전쟁터' },
+    { key: 'azit',       emoji: '🏠', name: '아지트' },
+    { key: 'playground', emoji: '🎮', name: '놀이터' },
+    { key: 'view',       emoji: '👁️', name: '조회수' },
+    { key: 'manner',     emoji: '😇', name: '매너 점수' },
+    { key: 'level',      emoji: '⭐', name: '레벨 달성' },
+    { key: 'special',    emoji: '🌈', name: '특별' },
+]
+
+// 전체 100개 배지 정의 (PHP BADGES 상수와 동기화)
+const ALL_BADGES = [
+    // ── 게시글 (10) ──────────────────────────────────────────────────
+    { key: 'first_post',        emoji: '🌱', name: '첫 걸음',        desc: '게시글 1개 이상 작성',          category: 'post' },
+    { key: 'writer_5',          emoji: '📝', name: '새내기 작가',     desc: '게시글 5개 이상 작성',          category: 'post' },
+    { key: 'writer_10',         emoji: '✍️', name: '활발한 작가',     desc: '게시글 10개 이상 작성',         category: 'post' },
+    { key: 'writer_30',         emoji: '📓', name: '꾸준한 작가',     desc: '게시글 30개 이상 작성',         category: 'post' },
+    { key: 'writer_100',        emoji: '📚', name: '백 편의 글',      desc: '게시글 100개 이상 작성',        category: 'post' },
+    { key: 'writer_300',        emoji: '📖', name: '다작가',          desc: '게시글 300개 이상 작성',        category: 'post' },
+    { key: 'writer_500',        emoji: '🏛️', name: '전설적 작가',     desc: '게시글 500개 이상 작성',        category: 'post' },
+    { key: 'writer_1000',       emoji: '🖋️', name: '천 편의 역사',   desc: '게시글 1,000개 이상 작성',      category: 'post' },
+    { key: 'writer_2000',       emoji: '⌨️', name: '글의 제왕',       desc: '게시글 2,000개 이상 작성',      category: 'post' },
+    { key: 'writer_5000',       emoji: '📜', name: '필경사',          desc: '게시글 5,000개 이상 작성',      category: 'post' },
+    // ── 댓글 (10) ────────────────────────────────────────────────────
+    { key: 'first_comment',     emoji: '🗨️', name: '첫 댓글',        desc: '댓글 1개 이상 작성',            category: 'comment' },
+    { key: 'commenter_5',       emoji: '💬', name: '말문 열기',       desc: '댓글 5개 이상 작성',            category: 'comment' },
+    { key: 'commenter_20',      emoji: '💭', name: '수다 시작',       desc: '댓글 20개 이상 작성',           category: 'comment' },
+    { key: 'commenter_50',      emoji: '🗣️', name: '이야기꾼',        desc: '댓글 50개 이상 작성',           category: 'comment' },
+    { key: 'commenter_100',     emoji: '🎤', name: '논쟁 가담자',     desc: '댓글 100개 이상 작성',          category: 'comment' },
+    { key: 'commenter_300',     emoji: '📢', name: '토론 고수',       desc: '댓글 300개 이상 작성',          category: 'comment' },
+    { key: 'commenter_500',     emoji: '📣', name: '댓글 마스터',     desc: '댓글 500개 이상 작성',          category: 'comment' },
+    { key: 'commenter_1000',    emoji: '🔊', name: '천 개의 한마디',  desc: '댓글 1,000개 이상 작성',        category: 'comment' },
+    { key: 'commenter_2000',    emoji: '📡', name: '메아리',          desc: '댓글 2,000개 이상 작성',        category: 'comment' },
+    { key: 'commenter_5000',    emoji: '🌐', name: '언어의 달인',     desc: '댓글 5,000개 이상 작성',        category: 'comment' },
+    // ── 추천 합계 (10) ───────────────────────────────────────────────
+    { key: 'popular_10',        emoji: '👍', name: '좋아요 시작',     desc: '받은 추천 합계 10개 이상',      category: 'vote' },
+    { key: 'popular_50',        emoji: '🤩', name: '인기 상승 중',    desc: '받은 추천 합계 50개 이상',      category: 'vote' },
+    { key: 'popular_100',       emoji: '⭐', name: '인기인',          desc: '받은 추천 합계 100개 이상',     category: 'vote' },
+    { key: 'popular_300',       emoji: '🌟', name: '스타',            desc: '받은 추천 합계 300개 이상',     category: 'vote' },
+    { key: 'popular_500',       emoji: '💫', name: '인기폭발',        desc: '받은 추천 합계 500개 이상',     category: 'vote' },
+    { key: 'popular_1000',      emoji: '✨', name: '슈퍼스타',        desc: '받은 추천 합계 1,000개 이상',   category: 'vote' },
+    { key: 'popular_3000',      emoji: '🌠', name: '팬덤 보유자',     desc: '받은 추천 합계 3,000개 이상',   category: 'vote' },
+    { key: 'popular_5000',      emoji: '🌌', name: '전설적 인기',     desc: '받은 추천 합계 5,000개 이상',   category: 'vote' },
+    { key: 'popular_10000',     emoji: '🔥', name: '만인의 스타',     desc: '받은 추천 합계 10,000개 이상',  category: 'vote' },
+    { key: 'popular_50000',     emoji: '☄️', name: '추천 신화',       desc: '받은 추천 합계 50,000개 이상',  category: 'vote' },
+    // ── 단건 추천 (6) ────────────────────────────────────────────────
+    { key: 'hot_post_10',       emoji: '🌶️', name: '화제의 씨앗',    desc: '단건 게시글 추천 10개 이상',    category: 'hot' },
+    { key: 'hot_post',          emoji: '🔥', name: '화제의 글',       desc: '단건 게시글 추천 30개 이상',    category: 'hot' },
+    { key: 'hot_post_50',       emoji: '💥', name: '대박 글',         desc: '단건 게시글 추천 50개 이상',    category: 'hot' },
+    { key: 'hot_post_100',      emoji: '⚡', name: '폭발적 반응',     desc: '단건 게시글 추천 100개 이상',   category: 'hot' },
+    { key: 'hot_post_200',      emoji: '🌪️', name: '바이럴',          desc: '단건 게시글 추천 200개 이상',   category: 'hot' },
+    { key: 'hot_post_500',      emoji: '☄️', name: '역대급 글',       desc: '단건 게시글 추천 500개 이상',   category: 'hot' },
+    // ── 전쟁터 (9) ───────────────────────────────────────────────────
+    { key: 'warrior_1',         emoji: '🗡️', name: '입대',            desc: '전쟁터 게시글 1개 이상',        category: 'battle' },
+    { key: 'warrior_10',        emoji: '⚔️', name: '전투 경험',       desc: '전쟁터 게시글 10개 이상',       category: 'battle' },
+    { key: 'warrior',           emoji: '🛡️', name: '전사',            desc: '전쟁터 게시글 20개 이상',       category: 'battle' },
+    { key: 'warrior_50',        emoji: '🏹', name: '베테랑 전사',     desc: '전쟁터 게시글 50개 이상',       category: 'battle' },
+    { key: 'warrior_100',       emoji: '💪', name: '전쟁의 고수',     desc: '전쟁터 게시글 100개 이상',      category: 'battle' },
+    { key: 'warrior_300',       emoji: '🌋', name: '전쟁의 신',       desc: '전쟁터 게시글 300개 이상',      category: 'battle' },
+    { key: 'warrior_500',       emoji: '👊', name: '전쟁 영웅',       desc: '전쟁터 게시글 500개 이상',      category: 'battle' },
+    { key: 'warrior_1000',      emoji: '💀', name: '불멸의 전사',     desc: '전쟁터 게시글 1,000개 이상',    category: 'battle' },
+    { key: 'warrior_2000',      emoji: '👹', name: '전장의 악마',     desc: '전쟁터 게시글 2,000개 이상',    category: 'battle' },
+    // ── 아지트 (7) ───────────────────────────────────────────────────
+    { key: 'azit_1',            emoji: '🏠', name: '아지트 입성',     desc: '아지트 게시글 1개 이상',        category: 'azit' },
+    { key: 'azit_5',            emoji: '🛖', name: '단골손님',         desc: '아지트 게시글 5개 이상',        category: 'azit' },
+    { key: 'azit_10',           emoji: '🏡', name: '아지트 단골',     desc: '아지트 게시글 10개 이상',       category: 'azit' },
+    { key: 'azit_30',           emoji: '🏘️', name: '진영의 일원',     desc: '아지트 게시글 30개 이상',       category: 'azit' },
+    { key: 'azit_50',           emoji: '🛡️', name: '아지트 수호자',   desc: '아지트 게시글 50개 이상',       category: 'azit' },
+    { key: 'azit_100',          emoji: '🗼', name: '진영의 기둥',     desc: '아지트 게시글 100개 이상',      category: 'azit' },
+    { key: 'azit_200',          emoji: '🏰', name: '아지트의 왕',     desc: '아지트 게시글 200개 이상',      category: 'azit' },
+    // ── 놀이터 (7) ───────────────────────────────────────────────────
+    { key: 'playground_1',      emoji: '🎮', name: '놀이터 입성',     desc: '놀이터 게시글 1개 이상',        category: 'playground' },
+    { key: 'playground_5',      emoji: '🎯', name: '오락 시작',       desc: '놀이터 게시글 5개 이상',        category: 'playground' },
+    { key: 'playground_10',     emoji: '🎡', name: '놀이터 단골',     desc: '놀이터 게시글 10개 이상',       category: 'playground' },
+    { key: 'playground_30',     emoji: '🎪', name: '재미 추구자',     desc: '놀이터 게시글 30개 이상',       category: 'playground' },
+    { key: 'playground_50',     emoji: '🎭', name: '엔터테이너',      desc: '놀이터 게시글 50개 이상',       category: 'playground' },
+    { key: 'playground_100',    emoji: '🎬', name: '놀이터 챔피언',   desc: '놀이터 게시글 100개 이상',      category: 'playground' },
+    { key: 'playground_200',    emoji: '🎠', name: '놀이의 달인',     desc: '놀이터 게시글 200개 이상',      category: 'playground' },
+    // ── 조회수 (7) ───────────────────────────────────────────────────
+    { key: 'view_500',          emoji: '👀', name: '주목받기 시작',   desc: '총 조회수 500회 이상',          category: 'view' },
+    { key: 'view_1000',         emoji: '👁️', name: '조회 스타',       desc: '총 조회수 1,000회 이상',        category: 'view' },
+    { key: 'view_5000',         emoji: '🔍', name: '많이 읽힌 글',    desc: '총 조회수 5,000회 이상',        category: 'view' },
+    { key: 'view_10000',        emoji: '🌐', name: '만회 돌파',       desc: '총 조회수 10,000회 이상',       category: 'view' },
+    { key: 'view_30000',        emoji: '🌍', name: '인기 작가',       desc: '총 조회수 30,000회 이상',       category: 'view' },
+    { key: 'view_100000',       emoji: '🌏', name: '십만 독자',       desc: '총 조회수 100,000회 이상',      category: 'view' },
+    { key: 'view_500000',       emoji: '🌌', name: '조회수 신화',     desc: '총 조회수 500,000회 이상',      category: 'view' },
+    // ── 매너 점수 (8) ────────────────────────────────────────────────
+    { key: 'manner_105',        emoji: '😊', name: '예의 바른 시작',  desc: '매너 점수 105점 이상',          category: 'manner' },
+    { key: 'manner_110',        emoji: '😇', name: '매너 있는 유저',  desc: '매너 점수 110점 이상',          category: 'manner' },
+    { key: 'manner_120',        emoji: '🕊️', name: '평화주의자',      desc: '매너 점수 120점 이상',          category: 'manner' },
+    { key: 'manner_130',        emoji: '🌸', name: '매너리스트',      desc: '매너 점수 130점 이상',          category: 'manner' },
+    { key: 'manner_150',        emoji: '💝', name: '매너왕',          desc: '매너 점수 150점 이상',          category: 'manner' },
+    { key: 'manner_180',        emoji: '🙏', name: '진정한 신사',     desc: '매너 점수 180점 이상',          category: 'manner' },
+    { key: 'manner_200',        emoji: '👼', name: '성인군자',        desc: '매너 점수 200점 이상',          category: 'manner' },
+    { key: 'manner_250',        emoji: '🌈', name: '완전무결',        desc: '매너 점수 250점 이상',          category: 'manner' },
+    // ── 레벨 달성 (10) ───────────────────────────────────────────────
+    { key: 'level5',            emoji: '📰', name: '논객의 길',       desc: '레벨 5 달성',                   category: 'level' },
+    { key: 'level10',           emoji: '⚔️', name: '전사의 증명',     desc: '레벨 10 달성',                  category: 'level' },
+    { key: 'level15',           emoji: '🌟', name: '스타의 반열',     desc: '레벨 15 달성',                  category: 'level' },
+    { key: 'level20',           emoji: '⭐', name: '슈퍼스타',        desc: '레벨 20 달성',                  category: 'level' },
+    { key: 'level25',           emoji: '🦋', name: '각성의 시작',     desc: '레벨 25 달성',                  category: 'level' },
+    { key: 'level30',           emoji: '👑', name: '폴릿의 신',       desc: '레벨 30 달성',                  category: 'level' },
+    { key: 'level35',           emoji: '🦄', name: '전설의 시작',     desc: '레벨 35 달성',                  category: 'level' },
+    { key: 'level40',           emoji: '🌀', name: '차원 이동자',     desc: '레벨 40 달성',                  category: 'level' },
+    { key: 'level45',           emoji: '🌞', name: '태양의 신',       desc: '레벨 45 달성',                  category: 'level' },
+    { key: 'level50',           emoji: '💠', name: '창조주',          desc: '레벨 50 달성',                  category: 'level' },
+    // ── 특별 (16) ────────────────────────────────────────────────────
+    { key: 'test_taker',        emoji: '🧭', name: '성향 탐구자',     desc: '정치 성향 테스트 완료',         category: 'special' },
+    { key: 'all_rounder',       emoji: '🌈', name: '올라운더',        desc: '아지트·전쟁터·놀이터 모두 1개 이상', category: 'special' },
+    { key: 'vet_30days',        emoji: '📅', name: '한 달의 기록',    desc: '가입 30일 이상',                category: 'special' },
+    { key: 'vet_100days',       emoji: '🗓️', name: '100일의 인연',   desc: '가입 100일 이상',               category: 'special' },
+    { key: 'vet_365days',       emoji: '🎂', name: '1주년',           desc: '가입 1년 이상',                 category: 'special' },
+    { key: 'vet_3years',        emoji: '🎊', name: '3주년',           desc: '가입 3년 이상',                 category: 'special' },
+    { key: 'hot_commenter',     emoji: '💬', name: '댓글 반응왕',     desc: '댓글 추천 합계 100개 이상',     category: 'special' },
+    { key: 'hot_commenter_500', emoji: '🎤', name: '댓글 스타',       desc: '댓글 추천 합계 500개 이상',     category: 'special' },
+    { key: 'triple_winner',     emoji: '🏆', name: '삼관왕',          desc: '아지트·전쟁터·놀이터 각 50개 이상', category: 'special' },
+    { key: 'popular_100000',    emoji: '🌟', name: '추천 10만',       desc: '받은 추천 합계 100,000개 이상', category: 'special' },
+    { key: 'view_1000000',      emoji: '🌌', name: '백만 조회',       desc: '총 조회수 1,000,000회 이상',    category: 'special' },
+    { key: 'commenter_10000',   emoji: '🌀', name: '만 개의 댓글',    desc: '댓글 10,000개 이상 작성',       category: 'special' },
+    { key: 'writer_3000',       emoji: '🏆', name: '글의 전설',       desc: '게시글 3,000개 이상 작성',      category: 'special' },
+    { key: 'warrior_3000',      emoji: '👿', name: '전쟁의 화신',     desc: '전쟁터 게시글 3,000개 이상',    category: 'special' },
+    { key: 'azit_300',          emoji: '💎', name: '아지트 전설',     desc: '아지트 게시글 300개 이상',      category: 'special' },
+    { key: 'playground_300',    emoji: '🎆', name: '놀이터 전설',     desc: '놀이터 게시글 300개 이상',      category: 'special' },
+]
+
+// 획득한 배지 키 → awarded_at 맵
 const awardedBadgeMap = computed(() => {
     const map = {}
     props.badges.forEach(b => { map[b.badge_key] = b.awarded_at })
     return map
 })
 
-const badgesWithStatus = computed(() =>
-    ALL_BADGES.map(b => ({
-        ...b,
-        awarded: Object.prototype.hasOwnProperty.call(awardedBadgeMap.value, b.key),
-        awarded_at: awardedBadgeMap.value[b.key] ?? null,
-    }))
-)
+// 획득한 배지만 (최신 획득순)
+const awardedBadgesWithData = computed(() => {
+    return props.badges
+        .map(b => {
+            const info = ALL_BADGES.find(a => a.key === b.badge_key)
+            if (!info) return null
+            return { ...info, awarded_at: b.awarded_at }
+        })
+        .filter(Boolean)
+        .sort((a, b) => new Date(b.awarded_at) - new Date(a.awarded_at))
+})
+
+// 카테고리별 전체 배지 (도감용)
+const badgesByCategory = computed(() => {
+    const map = {}
+    ALL_BADGES.forEach(b => {
+        if (!map[b.category]) map[b.category] = []
+        const awarded = Object.prototype.hasOwnProperty.call(awardedBadgeMap.value, b.key)
+        map[b.category].push({
+            ...b,
+            awarded,
+            awarded_at: awardedBadgeMap.value[b.key] ?? null,
+        })
+    })
+    return map
+})
 
 const awardedCount = computed(() => props.badges.length)
-
-// 레벨 XP 아코디언
-const showLevelInfo = ref(false)
-
-const XP_LEVELS = [
-    // 입문
-    { emoji: '🌱', name: '새싹',      xp: '0' },
-    { emoji: '🌿', name: '풀잎',      xp: '100' },
-    { emoji: '📖', name: '견습생',    xp: '250' },
-    { emoji: '🔍', name: '탐색자',    xp: '500' },
-    { emoji: '📰', name: '논객',      xp: '900' },
-    // 성장
-    { emoji: '🎙️', name: '웅변가',    xp: '1,400' },
-    { emoji: '⚡', name: '활동가',    xp: '2,100' },
-    { emoji: '🔥', name: '열혈당원',  xp: '3,000' },
-    { emoji: '📣', name: '대변인',    xp: '4,200' },
-    { emoji: '⚔️', name: '전사',      xp: '5,800' },
-    // 중견
-    { emoji: '🗡️', name: '베테랑',    xp: '8,000' },
-    { emoji: '🛡️', name: '수호자',    xp: '11,000' },
-    { emoji: '🦅', name: '선봉대',    xp: '15,000' },
-    { emoji: '💎', name: '정예',      xp: '20,000' },
-    { emoji: '🌟', name: '스타',      xp: '27,000' },
-    // 고수
-    { emoji: '🔮', name: '전략가',    xp: '36,000' },
-    { emoji: '🦁', name: '진영 리더', xp: '47,500' },
-    { emoji: '👁️', name: '감시자',    xp: '62,000' },
-    { emoji: '🏆', name: '챔피언',    xp: '80,000' },
-    { emoji: '⭐', name: '슈퍼스타',  xp: '103,000' },
-    // 엘리트
-    { emoji: '🌙', name: '야전대장',  xp: '132,000' },
-    { emoji: '☀️', name: '빛의 전사', xp: '170,000' },
-    { emoji: '🌊', name: '파도',      xp: '218,000' },
-    { emoji: '🏔️', name: '철옹성',    xp: '280,000' },
-    { emoji: '🦋', name: '각성자',    xp: '360,000' },
-    // 전설
-    { emoji: '🔱', name: '신화',      xp: '462,000' },
-    { emoji: '💫', name: '초월자',    xp: '593,000' },
-    { emoji: '🌌', name: '우주',      xp: '760,000' },
-    { emoji: '🌠', name: '불꽃 전설', xp: '975,000' },
-    { emoji: '👑', name: '폴릿의 신', xp: '1,250,000' },
-]
 </script>
 
 <template>
@@ -190,17 +317,13 @@ const XP_LEVELS = [
         >
             <!-- ① 아바타 + 기본 정보 + 수정 버튼 -->
             <div class="flex items-start gap-4">
-                <!-- 아바타 -->
                 <div
                     class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl flex-shrink-0"
                     :style="{ backgroundColor: user?.political_type ? factionConfig[user.political_type]?.color : '#475569' }"
                 >
                     {{ user?.level_emoji ?? '🌱' }}
                 </div>
-
-                <!-- 텍스트 정보 -->
                 <div class="flex-1 min-w-0">
-                    <!-- 닉네임 + 진영 + 수정 버튼 한 줄 -->
                     <div class="flex items-start justify-between gap-2 mb-1">
                         <div class="flex flex-wrap items-center gap-2 min-w-0">
                             <h1 class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white leading-tight">
@@ -213,7 +336,6 @@ const XP_LEVELS = [
                                 :emoji="user.faction_emoji"
                             />
                         </div>
-                        <!-- 수정 버튼: 항상 우측 상단 고정 -->
                         <Link
                             href="/profile/edit"
                             class="flex-shrink-0 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-colors border border-gray-300 dark:border-slate-700 whitespace-nowrap"
@@ -221,10 +343,7 @@ const XP_LEVELS = [
                             프로필 수정
                         </Link>
                     </div>
-
                     <p class="text-slate-500 dark:text-slate-400 text-xs sm:text-sm truncate mb-2">{{ user?.email }}</p>
-
-                    <!-- 매너 점수 -->
                     <div class="flex items-center gap-2">
                         <span class="text-xs text-slate-400 dark:text-slate-500">매너 점수</span>
                         <span :class="['text-sm font-bold', mannerColor]">{{ user?.manner_score ?? 0 }}점</span>
@@ -233,16 +352,14 @@ const XP_LEVELS = [
                 </div>
             </div>
 
-            <!-- ② 레벨 & XP 영역 (헤더 하단, 전체 너비) -->
+            <!-- ② 레벨 & XP -->
             <div class="mt-4 pt-4 border-t border-gray-200/70 dark:border-slate-700/70">
-                <!-- 레벨 행 + 아코디언 토글 -->
                 <div class="flex items-center gap-2 mb-2">
                     <span class="text-base leading-none">{{ user?.level_emoji ?? '🌱' }}</span>
                     <span class="font-bold text-slate-800 dark:text-slate-200 text-sm">
                         Lv.{{ user?.level ?? 1 }} {{ user?.level_name }}
                     </span>
                     <span v-if="user?.next_level_xp == null" class="text-xs font-bold text-amber-500">👑 MAX</span>
-                    <!-- XP 가이드 아코디언 토글 -->
                     <button
                         @click="showLevelInfo = !showLevelInfo"
                         class="ml-auto flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 hover:text-violet-600 dark:hover:text-violet-400 transition-colors py-0.5 px-2 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-900/20"
@@ -256,8 +373,6 @@ const XP_LEVELS = [
                         </svg>
                     </button>
                 </div>
-
-                <!-- XP 진행 바 -->
                 <template v-if="user?.next_level_xp != null">
                     <div class="flex justify-between text-[11px] text-slate-400 dark:text-slate-500 mb-1.5">
                         <span>{{ (user?.experience_points ?? 0).toLocaleString() }} XP</span>
@@ -278,8 +393,6 @@ const XP_LEVELS = [
                 <div v-else class="text-xs text-amber-500 font-semibold">
                     최고 레벨 달성 — {{ (user?.experience_points ?? 0).toLocaleString() }} XP
                 </div>
-
-                <!-- 아코디언 패널 (XP 가이드) -->
                 <transition
                     enter-active-class="transition-all duration-200 ease-out"
                     enter-from-class="opacity-0 max-h-0"
@@ -313,7 +426,7 @@ const XP_LEVELS = [
 
         <!-- 최근 게시글 -->
         <div class="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 mb-6">
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-800">
                 <h2 class="text-slate-900 dark:text-white font-semibold">최근 게시글</h2>
             </div>
             <div v-if="recentPosts.length === 0" class="px-6 py-8 text-center text-slate-400 dark:text-slate-500 text-sm">
@@ -321,10 +434,7 @@ const XP_LEVELS = [
             </div>
             <div v-else class="divide-y divide-gray-200 dark:divide-slate-800">
                 <div v-for="post in recentPosts" :key="post.id" class="px-6 py-3 hover:bg-gray-100/30 dark:hover:bg-slate-800/30 transition-colors">
-                    <Link
-                        :href="`/boards/${post.board?.slug}/posts/${post.id}`"
-                        class="flex items-center justify-between group"
-                    >
+                    <Link :href="`/boards/${post.board?.slug}/posts/${post.id}`" class="flex items-center justify-between group">
                         <div>
                             <span class="text-slate-700 dark:text-slate-200 group-hover:text-slate-900 dark:group-hover:text-white text-sm transition-colors line-clamp-1">
                                 {{ post.title }}
@@ -361,35 +471,117 @@ const XP_LEVELS = [
             </div>
         </div>
 
-        <!-- 내 배지 -->
+        <!-- ══ 내 배지 ══════════════════════════════════════════════════════ -->
         <div class="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 mb-6">
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between">
-                <h2 class="text-slate-900 dark:text-white font-semibold">내 배지</h2>
-                <span class="text-xs text-slate-400 dark:text-slate-500">{{ awardedCount }} / {{ ALL_BADGES.length }}개 획득</span>
-            </div>
-            <div class="p-5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                <div
-                    v-for="badge in badgesWithStatus"
-                    :key="badge.key"
-                    :class="[
-                        'flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all',
-                        badge.awarded
-                            ? 'bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-700'
-                            : 'bg-gray-50 dark:bg-slate-800/50 border-gray-200 dark:border-slate-700 opacity-40 grayscale'
-                    ]"
-                    :title="badge.desc"
-                >
-                    <span class="text-2xl leading-none">{{ badge.emoji }}</span>
-                    <span :class="[
-                        'text-xs font-semibold text-center leading-tight',
-                        badge.awarded ? 'text-slate-800 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400'
-                    ]">{{ badge.name }}</span>
-                    <span class="text-[10px] text-slate-400 dark:text-slate-500 text-center leading-tight">{{ badge.desc }}</span>
-                    <span v-if="badge.awarded && badge.awarded_at" class="text-[10px] text-violet-500 dark:text-violet-400 font-medium mt-0.5">
-                        {{ new Date(badge.awarded_at).toLocaleDateString('ko') }}
+            <!-- 헤더 -->
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div class="flex items-center gap-2">
+                    <h2 class="text-slate-900 dark:text-white font-semibold">내 배지</h2>
+                    <span class="text-xs bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 font-bold px-2 py-0.5 rounded-full">
+                        {{ awardedCount }} / {{ ALL_BADGES.length }}
                     </span>
                 </div>
+                <!-- 전체 도감 토글 -->
+                <button
+                    @click="showAllBadges = !showAllBadges"
+                    class="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 hover:text-violet-600 dark:hover:text-violet-400 transition-colors py-1 px-3 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-900/20 border border-gray-200 dark:border-slate-700 self-start sm:self-auto"
+                >
+                    <span>🗂️ 전체 배지 도감</span>
+                    <svg
+                        :class="['w-3 h-3 transition-transform duration-200', showAllBadges ? 'rotate-180' : '']"
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"
+                    >
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
             </div>
+
+            <!-- 획득한 배지 그리드 (기본 표시) -->
+            <div class="p-5">
+                <div v-if="awardedBadgesWithData.length === 0" class="text-center py-8 text-slate-400 dark:text-slate-500">
+                    <div class="text-3xl mb-2">🏅</div>
+                    <p class="text-sm">아직 획득한 배지가 없습니다.</p>
+                    <p class="text-xs mt-1 text-slate-300 dark:text-slate-600">활동을 시작해 첫 배지를 획득해 보세요!</p>
+                </div>
+                <div v-else class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                    <div
+                        v-for="badge in awardedBadgesWithData"
+                        :key="badge.key"
+                        class="flex flex-col items-center gap-1 p-2.5 rounded-xl border bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-700 hover:border-violet-400 dark:hover:border-violet-500 transition-all cursor-default"
+                        :title="badge.desc"
+                    >
+                        <span class="text-2xl leading-none">{{ badge.emoji }}</span>
+                        <span class="text-[11px] font-semibold text-slate-800 dark:text-slate-100 text-center leading-tight">{{ badge.name }}</span>
+                        <span v-if="badge.awarded_at" class="text-[10px] text-violet-500 dark:text-violet-400 font-medium">
+                            {{ new Date(badge.awarded_at).toLocaleDateString('ko') }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── 전체 배지 도감 아코디언 ────────────────────────────────── -->
+            <transition
+                enter-active-class="transition-all duration-300 ease-out"
+                enter-from-class="opacity-0"
+                enter-to-class="opacity-100"
+                leave-active-class="transition-all duration-200 ease-in"
+                leave-from-class="opacity-100"
+                leave-to-class="opacity-0"
+            >
+                <div v-if="showAllBadges" class="border-t border-gray-200 dark:border-slate-800 px-5 pt-5 pb-3">
+                    <p class="text-xs text-slate-400 dark:text-slate-500 mb-5">
+                        획득한 배지는 컬러로, 미획득 배지는 흐리게 표시됩니다.
+                    </p>
+
+                    <div v-for="cat in BADGE_CATEGORIES" :key="cat.key" class="mb-7 last:mb-2">
+                        <!-- 카테고리 헤더 -->
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="text-base">{{ cat.emoji }}</span>
+                            <h3 class="text-sm font-bold text-slate-700 dark:text-slate-300">{{ cat.name }}</h3>
+                            <span class="text-[11px] text-slate-400 dark:text-slate-500 ml-1">
+                                ({{ (badgesByCategory[cat.key] ?? []).filter(b => b.awarded).length }}/{{ (badgesByCategory[cat.key] ?? []).length }})
+                            </span>
+                        </div>
+
+                        <!-- 배지 그리드 -->
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                            <div
+                                v-for="badge in badgesByCategory[cat.key] ?? []"
+                                :key="badge.key"
+                                :class="[
+                                    'flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all cursor-default',
+                                    badge.awarded
+                                        ? 'bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-700'
+                                        : 'bg-gray-50 dark:bg-slate-800/50 border-gray-200 dark:border-slate-700'
+                                ]"
+                                :title="badge.desc"
+                            >
+                                <!-- 이모지: 미획득은 흐림 처리, 획득은 선명 -->
+                                <span
+                                    :class="['text-xl leading-none transition-all', !badge.awarded && 'grayscale opacity-40']"
+                                >{{ badge.emoji }}</span>
+                                <!-- 배지명: 미획득도 읽을 수 있게 -->
+                                <span :class="[
+                                    'text-[11px] font-semibold text-center leading-tight',
+                                    badge.awarded
+                                        ? 'text-slate-800 dark:text-slate-100'
+                                        : 'text-slate-500 dark:text-slate-400'
+                                ]">{{ badge.name }}</span>
+                                <!-- 설명: 미획득은 약간 흐리게, 그러나 읽을 수 있게 -->
+                                <span :class="[
+                                    'text-[10px] text-center leading-tight',
+                                    badge.awarded
+                                        ? 'text-slate-500 dark:text-slate-400'
+                                        : 'text-slate-400 dark:text-slate-500'
+                                ]">{{ badge.desc }}</span>
+                                <span v-if="badge.awarded && badge.awarded_at" class="text-[10px] text-violet-500 dark:text-violet-400 font-medium mt-0.5">
+                                    {{ new Date(badge.awarded_at).toLocaleDateString('ko') }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </transition>
         </div>
 
         <!-- 활동 상세 통계 -->

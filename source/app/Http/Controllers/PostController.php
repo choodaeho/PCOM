@@ -28,9 +28,8 @@ class PostController extends Controller
     public function store(Request $request, Board $board): mixed
     {
         $validated = $request->validate([
-            'title'        => ['required', 'string', 'min:2', 'max:300'],
-            'content'      => ['required', 'string'],
-            'is_anonymous' => ['boolean'],
+            'title'   => ['required', 'string', 'min:2', 'max:300'],
+            'content' => ['required', 'string'],
         ]);
 
         // HTML 태그를 제거한 실제 텍스트 길이 검증
@@ -44,7 +43,7 @@ class PostController extends Controller
             'faction'      => $request->user()->political_type->value,
             'title'        => $validated['title'],
             'content'      => $validated['content'],
-            'is_anonymous' => $validated['is_anonymous'] ?? false,
+            'is_anonymous' => false,
             'status'       => 'published',
         ]);
 
@@ -70,10 +69,26 @@ class PostController extends Controller
         }
 
         $post->load([
-            'user:id,nickname,political_type',
-            'comments.user:id,nickname,political_type',
-            'comments.replies.user:id,nickname,political_type',
+            'user:id,nickname,political_type,level',
+            'comments.user:id,nickname,political_type,level',
+            'comments.replies.user:id,nickname,political_type,level',
         ]);
+
+        // level_emoji 는 DB 컬럼이 아닌 LEVELS 상수 조회값 — BoardController 방식으로 주입
+        $appendLevelEmoji = function ($user): void {
+            if ($user) {
+                $lv = $user->level ?? 1;
+                $user->level_emoji = UserLevelService::LEVELS[$lv]['emoji'] ?? '🌱';
+            }
+        };
+
+        $appendLevelEmoji($post->user);
+        foreach ($post->comments as $comment) {
+            $appendLevelEmoji($comment->user);
+            foreach ($comment->replies as $reply) {
+                $appendLevelEmoji($reply->user);
+            }
+        }
 
         // 비로그인이면 myVote = null
         $myVote = $user?->votes()
@@ -115,7 +130,7 @@ class PostController extends Controller
 
         return Inertia::render('Posts/Edit', [
             'board' => $board->only(['id', 'name', 'slug']),
-            'post'  => $post->only(['id', 'title', 'content', 'is_anonymous']),
+            'post'  => $post->only(['id', 'title', 'content']),
         ]);
     }
 

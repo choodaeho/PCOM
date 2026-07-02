@@ -14,9 +14,8 @@ const page = usePage()
 const user = computed(() => page.props.auth?.user)
 
 const form = useForm({
-  title:        '',
-  content:      '',
-  is_anonymous: false,
+  title:   '',
+  content: '',
 })
 
 const submit = () => {
@@ -72,21 +71,8 @@ const submit = () => {
           <p v-if="form.errors.content" class="text-xs text-red-400 mt-2">{{ form.errors.content }}</p>
         </div>
 
-        <!-- 하단 옵션 & 버튼 -->
-        <div class="p-5 flex items-center justify-between flex-wrap gap-3 bg-white dark:bg-slate-900">
-
-          <!-- 익명 -->
-          <label class="flex items-center gap-2.5 cursor-pointer group">
-            <input
-              type="checkbox"
-              v-model="form.is_anonymous"
-              class="w-4 h-4 rounded border-gray-400 dark:border-slate-600 bg-gray-100 dark:bg-slate-800 text-violet-500 focus:ring-violet-500 focus:ring-offset-slate-900"
-            />
-            <div>
-              <span class="text-sm font-medium text-slate-600 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">익명으로 작성</span>
-              <p class="text-xs text-slate-400 dark:text-slate-500">작성자 이름과 진영이 숨겨집니다</p>
-            </div>
-          </label>
+        <!-- 하단 버튼 -->
+        <div class="p-5 flex items-center justify-end flex-wrap gap-3 bg-white dark:bg-slate-900">
 
           <!-- 액션 버튼 -->
           <div class="flex items-center gap-3">

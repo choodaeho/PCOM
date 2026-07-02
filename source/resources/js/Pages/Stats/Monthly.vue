@@ -50,12 +50,12 @@ const getTopFaction = (row) => {
 <template>
     <div class="max-w-7xl mx-auto px-4 py-8">
         <!-- 헤더 -->
-        <div class="flex items-center justify-between mb-8">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8">
             <div>
-                <div class="flex items-center gap-3 mb-1">
+                <div class="flex items-center gap-2 flex-wrap mb-1">
                     <Link href="/stats" class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-sm transition-colors">← 통계 개요</Link>
                     <span class="text-slate-400 dark:text-slate-600">|</span>
-                    <h1 class="text-2xl font-bold text-slate-900 dark:text-white">월간 진영 점수</h1>
+                    <h1 class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">월간 진영 점수</h1>
                 </div>
                 <p class="text-slate-500 dark:text-slate-400 text-sm">최근 {{ months }}개월 진영별 월간 점수 집계</p>
             </div>
@@ -84,7 +84,8 @@ const getTopFaction = (row) => {
                 집계된 데이터가 없습니다.
             </div>
 
-            <table v-else class="w-full text-sm">
+            <div v-else class="overflow-x-auto">
+            <table class="w-full text-sm min-w-[520px]">
                 <thead class="bg-gray-100 dark:bg-slate-800/50">
                     <tr class="text-slate-500 dark:text-slate-400 text-left">
                         <th class="px-6 py-3">월</th>
@@ -118,6 +119,7 @@ const getTopFaction = (row) => {
                     </tr>
                 </tbody>
             </table>
+            </div><!-- /overflow-x-auto -->
         </div>
 
         <div class="flex gap-3">

@@ -53,12 +53,12 @@ const globalMax = Math.max(...allScores, 1)
 <template>
     <div class="max-w-7xl mx-auto px-4 py-8">
         <!-- 헤더 -->
-        <div class="flex items-center justify-between mb-8">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8">
             <div>
-                <div class="flex items-center gap-3 mb-1">
+                <div class="flex items-center gap-2 flex-wrap mb-1">
                     <Link href="/stats" class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-sm transition-colors">← 통계 개요</Link>
                     <span class="text-slate-400 dark:text-slate-600">|</span>
-                    <h1 class="text-2xl font-bold text-slate-900 dark:text-white">연간 진영 점수</h1>
+                    <h1 class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">연간 진영 점수</h1>
                 </div>
                 <p class="text-slate-500 dark:text-slate-400 text-sm">최근 {{ years }}년 연간 진영 총점 및 챔피언 기록</p>
             </div>

@@ -1,27 +1,24 @@
 <script setup>
 import { Link } from '@inertiajs/vue3'
-import FactionBadge from '@/Components/FactionBadge.vue'
 
 const props = defineProps({
     post:        { type: Object, required: true },
     boardSlug:   { type: String, required: true },  // board.slug (URL에 사용)
-    showFaction: { type: Boolean, default: false },  // 전쟁터에서 진영 배지 노출
+    showFaction: { type: Boolean, default: false },  // 놀이터 제외 게시판에서 진영 배경 노출
 })
+
+// 진영별 배경 pill 색상 (레벨이모지+닉네임을 감싸는 배경)
+const factionBgClass = {
+    conservative: 'bg-red-500/15 border border-red-500/30 text-red-700 dark:text-red-300',
+    moderate:     'bg-violet-500/15 border border-violet-500/30 text-violet-700 dark:text-violet-400',
+    progressive:  'bg-blue-500/15 border border-blue-500/30 text-blue-700 dark:text-blue-300',
+}
 
 const formatDate = (dateStr) => {
     if (!dateStr) return ''
-    const date   = new Date(dateStr)
-    const now    = new Date()
-    const diffMs = now - date
-    const diffMin = Math.floor(diffMs / 60000)
-    const diffHr  = Math.floor(diffMin / 60)
-    const diffDay = Math.floor(diffHr / 24)
-
-    if (diffMin < 1)  return '방금 전'
-    if (diffMin < 60) return `${diffMin}분 전`
-    if (diffHr  < 24) return `${diffHr}시간 전`
-    if (diffDay < 7)  return `${diffDay}일 전`
-    return date.toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' })
+    const d   = new Date(dateStr)
+    const pad = (n) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 </script>
 
@@ -32,26 +29,36 @@ const formatDate = (dateStr) => {
     >
         <!-- Left: main content -->
         <div class="flex-1 min-w-0">
-            <div class="flex items-start gap-2 mb-2 flex-wrap">
-                <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors line-clamp-1 flex-1">
+            <div class="flex items-start gap-2 mb-1.5 flex-wrap">
+                <h3 class="text-[15px] font-semibold text-slate-800 dark:text-slate-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors line-clamp-2 sm:line-clamp-1 flex-1 leading-snug">
                     {{ post.title }}
                 </h3>
             </div>
 
             <!-- Meta row -->
-            <div class="flex items-center gap-3 flex-wrap text-xs text-slate-400 dark:text-slate-500">
+            <div class="flex items-center gap-2 sm:gap-3 flex-wrap text-xs text-slate-400 dark:text-slate-500">
                 <div class="flex items-center gap-1.5">
-                    <!-- 레벨 이모지 (익명 제외) -->
+                    <!-- 익명 -->
+                    <span v-if="post.is_anonymous">익명</span>
+
+                    <!-- 진영 배경 pill: 레벨이모지 + 닉네임을 진영 색으로 감쌈 -->
                     <span
-                        v-if="!post.is_anonymous && post.user?.level_emoji"
-                        class="leading-none"
-                        :title="`Lv.${post.user?.level ?? 1}`"
-                    >{{ post.user.level_emoji }}</span>
-                    <span>{{ post.is_anonymous ? '익명' : (post.user?.nickname ?? '알 수 없음') }}</span>
-                    <FactionBadge
-                        v-if="showFaction && post.faction && !post.is_anonymous"
-                        :type="post.faction"
-                    />
+                        v-else-if="showFaction && post.faction"
+                        :class="[
+                            'inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium',
+                            factionBgClass[post.faction] ?? 'bg-slate-500/10 border border-slate-500/30 text-slate-600 dark:text-slate-400'
+                        ]"
+                        :title="`${post.faction === 'conservative' ? '보수' : post.faction === 'moderate' ? '중도' : '진보'} · Lv.${post.user?.level ?? 1}`"
+                    >
+                        <span v-if="post.user?.level_emoji" class="leading-none text-[13px]">{{ post.user.level_emoji }}</span>
+                        {{ post.user?.nickname ?? '알 수 없음' }}
+                    </span>
+
+                    <!-- 놀이터 or faction 없음: 무채색 pill -->
+                    <span v-else class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium bg-slate-100 border border-slate-200 text-slate-700 dark:bg-slate-800/60 dark:border-slate-700 dark:text-slate-400">
+                        <span v-if="post.user?.level_emoji" class="leading-none text-[13px]" :title="`Lv.${post.user?.level ?? 1}`">{{ post.user.level_emoji }}</span>
+                        {{ post.user?.nickname ?? '알 수 없음' }}
+                    </span>
                 </div>
                 <span class="text-gray-300 dark:text-slate-700">·</span>
                 <span>{{ formatDate(post.created_at) }}</span>

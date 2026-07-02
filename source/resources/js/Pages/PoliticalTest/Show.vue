@@ -50,9 +50,9 @@ const isSelected = (value) => form.answers[currentStep.value].value === value
       <!-- 회원가입 경유 배너 -->
       <div v-if="source === 'register'"
         class="flex items-center justify-between bg-violet-500/10 border border-violet-500/30 rounded-xl px-4 py-3 mb-6 text-sm">
-        <div class="flex items-center gap-2 text-violet-500 dark:text-violet-300">
-          <span>📝</span>
-          <span>회원가입에서 왔어요 — 테스트 완료 후 결과를 자동 적용할 수 있습니다</span>
+        <div class="flex items-center gap-2 text-violet-500 dark:text-violet-300 flex-1 min-w-0">
+          <span class="flex-shrink-0">📝</span>
+          <span class="text-xs sm:text-sm">회원가입에서 왔어요 — 테스트 완료 후 결과를 자동 적용할 수 있습니다</span>
         </div>
         <Link href="/register" class="text-xs text-slate-500 hover:text-slate-400 transition-colors ml-4 whitespace-nowrap">
           돌아가기

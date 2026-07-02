@@ -97,7 +97,7 @@ const setFaction = (faction) => { currentFaction.value = faction; applyFilter(un
                             {{ isBattle ? '⚔️ 전쟁터' : isPlayground ? '🎡 놀이터' : '🏠 아지트' }}
                         </span>
                     </div>
-                    <h1 class="text-3xl font-black text-slate-900 dark:text-white">{{ board.name }}</h1>
+                    <h1 class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">{{ board.name }}</h1>
                     <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">{{ board.description }}</p>
                 </div>
 
@@ -133,15 +133,15 @@ const setFaction = (faction) => { currentFaction.value = faction; applyFilter(un
         </div>
 
         <!-- Filters Bar -->
-        <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-2 sm:gap-3">
             <!-- Sort Tabs -->
-            <div class="flex bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-1 gap-0.5">
+            <div class="flex bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-1 gap-0.5 self-start">
                 <button
                     v-for="opt in sortOptions"
                     :key="opt.value"
                     @click="setSort(opt.value)"
                     :class="[
-                        'px-4 py-1.5 rounded-lg text-sm font-medium transition-colors',
+                        'px-3 sm:px-4 py-1.5 rounded-lg text-sm font-medium transition-colors',
                         currentSort === opt.value
                             ? 'bg-violet-600 text-white'
                             : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -152,13 +152,13 @@ const setFaction = (faction) => { currentFaction.value = faction; applyFilter(un
             </div>
 
             <!-- 진영 필터 (전쟁터 전용) -->
-            <div v-if="isBattle" class="flex bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-1 gap-0.5">
+            <div v-if="isBattle" class="flex bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-1 gap-0.5 self-start">
                 <button
                     v-for="f in factionFilters"
                     :key="f.value"
                     @click="setFaction(f.value)"
                     :class="[
-                        'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
+                        'flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
                         currentFaction === f.value
                             ? 'bg-gray-200 dark:bg-slate-700 text-slate-900 dark:text-white'
                             : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -200,7 +200,7 @@ const setFaction = (faction) => { currentFaction.value = faction; applyFilter(un
                 :key="post.id"
                 :post="post"
                 :board-slug="board.slug"
-                :show-faction="isBattle"
+                :show-faction="!isPlayground"
             />
         </div>
 

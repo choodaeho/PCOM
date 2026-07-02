@@ -11,6 +11,9 @@
   --color-dark2:        #1e293b;
 }
 
+/* 가로 스크롤 방지 */
+html, body { overflow-x: hidden; }
+
 /* 라이트 모드 기본값 */
 body { @apply antialiased bg-gray-50 text-slate-900; }
 

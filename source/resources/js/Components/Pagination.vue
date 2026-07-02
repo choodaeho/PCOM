@@ -16,7 +16,7 @@ const isEllipsis = (label) => label === '...'
 </script>
 
 <template>
-  <nav v-if="links?.length > 3" class="flex items-center justify-center gap-1 mt-6" aria-label="페이지네이션">
+  <nav v-if="links?.length > 3" class="flex flex-wrap items-center justify-center gap-1 mt-6" aria-label="페이지네이션">
     <!-- Previous -->
     <template v-if="prevLink?.url">
       <Link

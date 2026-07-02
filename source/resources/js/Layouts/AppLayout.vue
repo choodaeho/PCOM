@@ -100,15 +100,15 @@ const factionBg = (type) => ({
 
     <!-- ScoreTicker -->
     <div class="bg-white dark:bg-slate-950 border-b border-gray-200 dark:border-slate-800 py-1.5">
-      <div class="max-w-7xl mx-auto px-4 flex items-center justify-center gap-6 flex-wrap">
+      <div class="max-w-7xl mx-auto px-4 flex items-center justify-center gap-3 sm:gap-5 flex-wrap">
         <span class="flex items-center gap-1.5 text-xs">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span class="text-emerald-500 dark:text-emerald-400 font-semibold tracking-widest">LIVE</span>
+          <span class="text-emerald-500 dark:text-emerald-400 font-semibold">LIVE</span>
         </span>
-        <div v-for="s in scores" :key="s.faction_type" class="flex items-center gap-2">
-          <span :class="['w-2 h-2 rounded-full', factionBg(s.faction_type)]"></span>
+        <div v-for="s in scores" :key="s.faction_type" class="flex items-center gap-1.5 sm:gap-2">
+          <span :class="['w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full', factionBg(s.faction_type)]"></span>
           <span class="text-slate-500 dark:text-slate-400 text-xs">{{ s.label }}</span>
-          <span :class="['text-sm font-bold tabular-nums', factionClass(s.faction_type)]">
+          <span :class="['text-xs sm:text-sm font-bold tabular-nums', factionClass(s.faction_type)]">
             {{ s.normalized_score != null ? Math.round(s.normalized_score * 100) : '-' }}
           </span>
         </div>
@@ -121,8 +121,11 @@ const factionBg = (type) => ({
       <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
 
         <!-- Logo -->
-        <Link href="/" class="text-xl font-black tracking-tight text-slate-900 dark:text-white hover:text-violet-500 dark:hover:text-violet-400 transition-colors">
-          POLIT<span class="text-violet-500 dark:text-violet-400">.</span>
+        <Link href="/" class="flex items-center gap-2 flex-shrink-0 group">
+          <img src="/favicon.svg" alt="폴릿" class="h-7 w-7">
+          <span class="text-xl font-black tracking-tight text-slate-900 dark:text-white group-hover:text-violet-500 dark:group-hover:text-violet-400 transition-colors">
+            POLIT<span class="text-violet-500 dark:text-violet-400">.</span>
+          </span>
         </Link>
 
         <!-- ── 데스크탑 Nav (lg 이상) ─────────────────────────── -->
@@ -353,9 +356,12 @@ const factionBg = (type) => ({
 
         <!-- ── 모바일 우측 (lg 미만) ─────────────────────────── -->
         <div class="flex lg:hidden items-center gap-3">
-          <!-- 로그인 상태 표시: 닉네임 -->
+          <!-- 로그인 상태 표시: 레벨 이모지 + 닉네임 -->
           <template v-if="user">
-            <span class="text-sm text-slate-700 dark:text-slate-200 font-medium max-w-[90px] truncate">{{ user.nickname }}</span>
+            <span class="flex items-center gap-1 text-sm text-slate-700 dark:text-slate-200 font-medium min-w-0">
+              <span class="text-base leading-none flex-shrink-0">{{ user.level_emoji ?? '🌱' }}</span>
+              <span class="max-w-[80px] truncate">{{ user.nickname }}</span>
+            </span>
           </template>
           <template v-else>
             <Link href="/login" class="text-slate-600 dark:text-slate-300 text-sm font-medium">로그인</Link>
@@ -387,8 +393,11 @@ const factionBg = (type) => ({
 
           <!-- 드로어 헤더 -->
           <div class="flex items-center justify-between px-5 h-14 border-b border-gray-200 dark:border-slate-800 flex-shrink-0">
-            <Link href="/" @click="mobileMenuOpen = false" class="text-lg font-black text-slate-900 dark:text-white">
-              POLIT<span class="text-violet-500 dark:text-violet-400">.</span>
+            <Link href="/" @click="mobileMenuOpen = false" class="flex items-center gap-2">
+              <img src="/favicon.svg" alt="폴릿" class="h-6 w-6">
+              <span class="text-lg font-black text-slate-900 dark:text-white">
+                POLIT<span class="text-violet-500 dark:text-violet-400">.</span>
+              </span>
             </Link>
             <button @click="mobileMenuOpen = false"
               class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
@@ -585,9 +594,15 @@ const factionBg = (type) => ({
       <div class="max-w-7xl mx-auto px-4">
         <!-- 로고 + 슬로건 -->
         <div class="text-center mb-5">
-          <p class="font-black text-slate-400 dark:text-slate-500 text-sm mb-1 tracking-tight">
-            POLIT<span class="text-violet-500">.</span>
-          </p>
+          <!-- 라이트 모드: 전체 로고 이미지 -->
+          <img src="/logo.svg" alt="POLIT" class="h-10 w-auto mx-auto mb-2 opacity-60 dark:hidden">
+          <!-- 다크 모드: 엠블럼 + 텍스트 -->
+          <div class="hidden dark:flex items-center justify-center gap-2 mb-2">
+            <img src="/favicon.svg" alt="" class="h-7 w-7 opacity-70">
+            <span class="font-black text-slate-400 text-base tracking-tight">
+              POLIT<span class="text-violet-500">.</span>
+            </span>
+          </div>
           <p class="text-xs text-slate-400 dark:text-slate-600">정치 성향 커뮤니티 플랫폼</p>
         </div>
 

@@ -70,14 +70,14 @@ const statValue = (user) => {
             <p class="text-gray-500 dark:text-slate-400 text-sm mt-1">가장 활발한 폴릿 유저들의 순위입니다.</p>
         </div>
 
-        <!-- 카테고리 탭 -->
-        <div class="flex bg-gray-100 dark:bg-slate-800 rounded-xl p-1 gap-1 mb-3">
+        <!-- 카테고리 탭 (모바일: 2×2 그리드 / sm+: 가로 flex) -->
+        <div class="grid grid-cols-2 sm:flex bg-gray-100 dark:bg-slate-800 rounded-xl p-1 gap-1 mb-3">
             <button
                 v-for="cat in categories"
                 :key="cat.key"
                 @click="changeFilter(cat.key, null)"
                 :class="[
-                    'flex-1 py-2 rounded-lg text-sm font-medium transition-colors',
+                    'sm:flex-1 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors',
                     category === cat.key
                         ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm'
                         : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-white'

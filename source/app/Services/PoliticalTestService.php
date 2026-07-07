@@ -32,14 +32,30 @@ class PoliticalTestService
     }
 
     /**
+     * 활성 문항에서 $count개를 무작위로 선택하여 반환.
+     *
+     * @param  int  $count 출제할 문항 수 (기본 10)
+     * @return \Illuminate\Database\Eloquent\Collection<PoliticalTest>
+     */
+    public function getRandomQuestions(int $count = 10): \Illuminate\Database\Eloquent\Collection
+    {
+        // scopeActive 내 orderBy('sort_order')를 reorder()로 초기화한 뒤
+        // inRandomOrder()를 적용해야 진짜 ORDER BY RANDOM() 쿼리가 실행된다.
+        return PoliticalTest::active()->reorder()->inRandomOrder()->limit($count)->get();
+    }
+
+    /**
      * 응답으로 성향을 계산만 하고 DB에 저장하지 않는다 (비로그인 테스트용).
      *
-     * @param  array<int, int>  $answers {question_id => selected_value} 맵
+     * @param  array<int, int>   $answers     {question_id => selected_value} 맵
+     * @param  array<int>        $questionIds 출제된 문항 ID 목록 (빈 배열이면 전체 활성 문항 사용)
      * @return array{political_type: string, faction_label: string, faction_emoji: string, faction_color: string, score: int, description: null}
      */
-    public function computeResult(array $answers): array
+    public function computeResult(array $answers, array $questionIds = []): array
     {
-        $questions  = $this->getActiveQuestions();
+        $questions  = ! empty($questionIds)
+            ? PoliticalTest::whereIn('id', $questionIds)->get()
+            : $this->getActiveQuestions();
         $totalScore = $this->calculateScore($questions, $answers);
         $faction    = FactionType::fromScore($totalScore);
 
@@ -56,15 +72,18 @@ class PoliticalTestService
     /**
      * 제출된 응답으로 성향 점수를 계산하고 결과를 저장한다.
      *
-     * @param  User                  $user    테스트 제출 사용자
-     * @param  array<int, int>       $answers {question_id => selected_value} 맵
+     * @param  User              $user        테스트 제출 사용자
+     * @param  array<int, int>   $answers     {question_id => selected_value} 맵
+     * @param  array<int>        $questionIds 출제된 문항 ID 목록 (세션에서 전달)
      * @return PoliticalTestSession           저장된 세션 레코드
      *
      * @throws \InvalidArgumentException 응답이 부족한 경우
      */
-    public function submitAndSave(User $user, array $answers): PoliticalTestSession
+    public function submitAndSave(User $user, array $answers, array $questionIds = []): PoliticalTestSession
     {
-        $questions = $this->getActiveQuestions();
+        $questions = ! empty($questionIds)
+            ? PoliticalTest::whereIn('id', $questionIds)->get()
+            : $this->getActiveQuestions();
 
         if (count($answers) < $questions->count()) {
             throw new \InvalidArgumentException('모든 문항에 응답해야 합니다.');

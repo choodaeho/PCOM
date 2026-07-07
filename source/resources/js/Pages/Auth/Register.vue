@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { Link, useForm, router } from '@inertiajs/vue3'
+import { Head, Link, useForm, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
 defineOptions({ layout: AppLayout })
@@ -81,6 +81,9 @@ const selectedFaction = (value: string) => factions.find(f => f.value === value)
 </script>
 
 <template>
+<Head title="회원가입">
+  <meta name="robots" content="noindex, nofollow" />
+</Head>
   <div class="min-h-[calc(100vh-10rem)] flex items-center justify-center px-4 py-12">
     <div class="w-full max-w-lg">
 

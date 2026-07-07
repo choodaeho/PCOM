@@ -1,5 +1,5 @@
 <script setup>
-import { Link, useForm } from '@inertiajs/vue3'
+import { Head, Link, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
 defineOptions({ layout: AppLayout })
@@ -23,6 +23,9 @@ const submit = () => {
 </script>
 
 <template>
+<Head title="로그인">
+  <meta name="robots" content="noindex, nofollow" />
+</Head>
   <div class="min-h-[calc(100vh-10rem)] flex items-center justify-center px-4 py-16">
     <div class="w-full max-w-md">
       <!-- Header -->

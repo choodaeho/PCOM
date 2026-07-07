@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Link, useForm } from '@inertiajs/vue3'
+import { Head, Link, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
 defineOptions({ layout: AppLayout })
@@ -44,6 +44,11 @@ const isSelected = (value) => form.answers[currentStep.value].value === value
 </script>
 
 <template>
+<Head title="정치 성향 테스트">
+  <meta name="description" content="10가지 질문으로 나의 정치 성향(보수·중도·진보)을 진단해보세요. 지금 바로 시작!" />
+  <meta property="og:title" content="정치 성향 테스트 — 폴릿" />
+  <meta property="og:description" content="10가지 질문으로 나의 정치 성향(보수·중도·진보)을 진단해보세요." />
+</Head>
   <div class="min-h-[calc(100vh-10rem)] flex items-center justify-center px-4 py-12">
     <div class="w-full max-w-2xl">
       <!-- Header -->

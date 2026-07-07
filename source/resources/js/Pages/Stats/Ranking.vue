@@ -1,5 +1,5 @@
 <script setup>
-import { router } from '@inertiajs/vue3'
+import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
 defineOptions({ layout: AppLayout })
@@ -63,6 +63,11 @@ const statValue = (user) => {
 </script>
 
 <template>
+<Head title="진영 랭킹">
+  <meta name="description" content="보수·중도·진보 진영별 활동 랭킹. 누가 가장 영향력 있는 진영 대변인인가?" />
+  <meta property="og:title" content="진영 랭킹 — 폴릿" />
+  <meta property="og:description" content="보수·중도·진보 진영별 활동 랭킹을 확인하세요." />
+</Head>
     <div class="max-w-3xl mx-auto px-4 py-8">
         <!-- 헤더 -->
         <div class="mb-6">

@@ -20,6 +20,7 @@ class Comment extends Model
         'post_id',
         'user_id',
         'parent_id',
+        'reply_to_id',
         'faction',
         'content',
         'is_anonymous',
@@ -57,13 +58,19 @@ class Comment extends Model
         return $this->belongsTo(User::class);
     }
 
-    /** 대댓글 parent */
+    /** 대댓글 parent (최상위 댓글) */
     public function parent(): BelongsTo
     {
         return $this->belongsTo(Comment::class, 'parent_id');
     }
 
-    /** 대댓글 목록 (1-depth) */
+    /** 답글 대상 댓글 (답글의 답글일 때 설정, @닉네임 표시용) */
+    public function replyTo(): BelongsTo
+    {
+        return $this->belongsTo(Comment::class, 'reply_to_id');
+    }
+
+    /** 대댓글 목록 (1-depth, 시간순) */
     public function replies(): HasMany
     {
         return $this->hasMany(Comment::class, 'parent_id')->orderBy('created_at');

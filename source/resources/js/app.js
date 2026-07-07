@@ -6,7 +6,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import '../css/app.css';
 
 createInertiaApp({
-    title: (title) => title ? `${title} — 폴릿` : '폴릿(Polit)',
+    title: (title) => title ? `${title} — 폴릿` : '폴릿 — 보수·중도·진보 정치 커뮤니티',
     resolve: (name) => resolvePageComponent(
         `./Pages/${name}.vue`,
         import.meta.glob('./Pages/**/*.vue'),

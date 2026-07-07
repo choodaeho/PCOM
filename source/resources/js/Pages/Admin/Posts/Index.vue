@@ -118,7 +118,7 @@ const statusColor = {
         <tbody class="divide-y divide-slate-800">
           <tr v-for="post in posts.data" :key="post.id" class="hover:bg-slate-800/30 transition-colors">
             <td class="px-4 py-3 max-w-xs">
-              <a :href="`/posts/${post.id}`" target="_blank"
+              <a :href="`/boards/${post.board?.slug}/posts/${post.id}`" target="_blank"
                 class="text-slate-100 hover:text-violet-400 font-medium truncate block transition-colors">
                 {{ post.title }}
               </a>

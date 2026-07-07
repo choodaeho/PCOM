@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { Link, useForm, usePage } from '@inertiajs/vue3'
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import FactionBadge from '@/Components/FactionBadge.vue'
 
@@ -49,6 +49,11 @@ const votePercent = (option, options) => {
 </script>
 
 <template>
+<Head title="커뮤니티 게시판">
+  <meta name="description" content="보수·중도·진보 아지트와 전쟁터, 놀이터를 모두 한곳에서. 지금 바로 참여하세요." />
+  <meta property="og:title" content="커뮤니티 게시판 — 폴릿" />
+  <meta property="og:description" content="보수·중도·진보 아지트와 전쟁터, 놀이터를 모두 한곳에서." />
+</Head>
   <div class="max-w-7xl mx-auto px-4 py-10">
     <div class="flex gap-8">
       <!-- Left: Main content -->

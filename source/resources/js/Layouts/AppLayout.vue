@@ -2,6 +2,7 @@
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
 import { useTheme } from '@/composables/useTheme'
+import NotificationDropdown from '@/Components/NotificationDropdown.vue'
 
 const page   = usePage()
 const user   = computed(() => page.props.auth?.user)
@@ -38,6 +39,7 @@ const profileOpen    = ref(false)
 const communityOpen  = ref(false)
 const statsOpen      = ref(false)
 const mobileMenuOpen = ref(false)
+const notifOpen      = ref(false)
 
 // 테마
 const { theme, isDark, setTheme } = useTheme()
@@ -53,6 +55,7 @@ const handleOutsideClick = () => {
   communityOpen.value = false
   statsOpen.value     = false
   profileOpen.value   = false
+  notifOpen.value     = false
 }
 onMounted(()       => document.addEventListener('click', handleOutsideClick))
 onBeforeUnmount(() => document.removeEventListener('click', handleOutsideClick))
@@ -199,13 +202,29 @@ const factionBg = (type) => ({
                     <div class="pt-4 border-t border-gray-200 dark:border-slate-800">
                       <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2.5">🧰 툴박스</p>
                       <div class="space-y-0.5">
-                        <Link href="/tools" @click="communityOpen = false"
+                        <Link href="/tools#lotto" @click="communityOpen = false"
                           class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
                           🎰 로또번호생성기
                         </Link>
-                        <Link href="/tools" @click="communityOpen = false"
+                        <Link href="/tools#fortune" @click="communityOpen = false"
                           class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
                           🔮 오늘의 운세
+                        </Link>
+                        <Link href="/tools#worldcup" @click="communityOpen = false"
+                          class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
+                          💘 이상형 월드컵
+                        </Link>
+                        <Link href="/tools#quiz" @click="communityOpen = false"
+                          class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
+                          📰 시사 퀴즈
+                        </Link>
+                        <Link href="/tools#politician" @click="communityOpen = false"
+                          class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
+                          🧬 닮은꼴 정치인
+                        </Link>
+                        <Link href="/tools#card" @click="communityOpen = false"
+                          class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
+                          📊 성향 공유카드
                         </Link>
                       </div>
                     </div>
@@ -255,6 +274,14 @@ const factionBg = (type) => ({
                 </div>
               </div>
             </transition>
+          </div>
+
+          <!-- 🔔 알림 벨 (데스크탑, 로그인 유저만) -->
+          <div v-if="user" class="relative" @click.stop>
+            <NotificationDropdown
+              :open="notifOpen"
+              @update:open="notifOpen = $event"
+            />
           </div>
 
           <!-- 🌙 테마 토글 (데스크탑) -->
@@ -366,6 +393,14 @@ const factionBg = (type) => ({
           <template v-else>
             <Link href="/login" class="text-slate-600 dark:text-slate-300 text-sm font-medium">로그인</Link>
           </template>
+
+          <!-- 🔔 알림 벨 (모바일, 로그인 유저만) -->
+          <div v-if="user" class="relative" @click.stop>
+            <NotificationDropdown
+              :open="notifOpen"
+              @update:open="notifOpen = $event"
+            />
+          </div>
 
           <!-- 햄버거 버튼 -->
           <button
@@ -490,13 +525,29 @@ const factionBg = (type) => ({
             <div class="px-5 pt-5 pb-1">
               <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">🧰 툴박스</p>
             </div>
-            <Link href="/tools" @click="mobileMenuOpen = false"
+            <Link href="/tools#lotto" @click="mobileMenuOpen = false"
               class="flex items-center gap-2 px-5 py-3 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors text-sm">
               🎰 로또번호생성기
             </Link>
-            <Link href="/tools" @click="mobileMenuOpen = false"
+            <Link href="/tools#fortune" @click="mobileMenuOpen = false"
               class="flex items-center gap-2 px-5 py-3 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors text-sm">
               🔮 오늘의 운세
+            </Link>
+            <Link href="/tools#worldcup" @click="mobileMenuOpen = false"
+              class="flex items-center gap-2 px-5 py-3 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors text-sm">
+              💘 이상형 월드컵
+            </Link>
+            <Link href="/tools#quiz" @click="mobileMenuOpen = false"
+              class="flex items-center gap-2 px-5 py-3 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors text-sm">
+              📰 시사 퀴즈
+            </Link>
+            <Link href="/tools#politician" @click="mobileMenuOpen = false"
+              class="flex items-center gap-2 px-5 py-3 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors text-sm">
+              🧬 닮은꼴 정치인
+            </Link>
+            <Link href="/tools#card" @click="mobileMenuOpen = false"
+              class="flex items-center gap-2 px-5 py-3 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors text-sm">
+              📊 성향 공유카드
             </Link>
 
             <div class="mx-5 my-4 border-t border-gray-200 dark:border-slate-800"></div>
@@ -592,18 +643,12 @@ const factionBg = (type) => ({
     <!-- Footer -->
     <footer class="border-t border-gray-200 dark:border-slate-800 mt-16 py-10">
       <div class="max-w-7xl mx-auto px-4">
-        <!-- 로고 + 슬로건 -->
-        <div class="text-center mb-5">
-          <!-- 라이트 모드: 전체 로고 이미지 -->
-          <img src="/logo.svg" alt="POLIT" class="h-10 w-auto mx-auto mb-2 opacity-60 dark:hidden">
-          <!-- 다크 모드: 엠블럼 + 텍스트 -->
-          <div class="hidden dark:flex items-center justify-center gap-2 mb-2">
-            <img src="/favicon.svg" alt="" class="h-7 w-7 opacity-70">
-            <span class="font-black text-slate-400 text-base tracking-tight">
-              POLIT<span class="text-violet-500">.</span>
-            </span>
-          </div>
-          <p class="text-xs text-slate-400 dark:text-slate-600">정치 성향 커뮤니티 플랫폼</p>
+        <!-- 로고 -->
+        <div class="flex items-center justify-center gap-3 mb-5">
+          <img src="/favicon.svg" alt="" class="h-10 w-10 opacity-60 dark:opacity-50">
+          <span class="font-black text-slate-600 dark:text-slate-400 text-3xl tracking-tight">
+            POLIT<span class="text-violet-500">.</span>
+          </span>
         </div>
 
         <!-- 법적 링크 1행 -->

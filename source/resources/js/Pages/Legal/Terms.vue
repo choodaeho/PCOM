@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { Link, router } from '@inertiajs/vue3'
+import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
 defineOptions({ layout: AppLayout })
@@ -20,6 +20,10 @@ const currentId = computed(() => props.document.id)
 </script>
 
 <template>
+<Head title="이용약관">
+  <meta name="description" content="폴릿 이용약관 — 서비스 이용에 관한 규정을 확인하세요." />
+  <meta name="robots" content="noindex" />
+</Head>
   <div class="max-w-6xl mx-auto px-4 py-10">
 
     <!-- 이전 버전 보기 경고 배너 -->

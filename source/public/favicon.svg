@@ -1,22 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <defs>
     <clipPath id="fc">
-      <rect x="1" y="1" width="30" height="24" rx="6"/>
+      <rect x="1" y="1" width="30" height="30" rx="7"/>
     </clipPath>
   </defs>
   <!-- 삼색 밴드 -->
-  <rect x="1"  y="1" width="10" height="24" fill="#E24B4A" clip-path="url(#fc)"/>
-  <rect x="11" y="1" width="10" height="24" fill="#7F77DD" clip-path="url(#fc)"/>
-  <rect x="21" y="1" width="10" height="24" fill="#378ADD" clip-path="url(#fc)"/>
+  <rect x="1"  y="1" width="10" height="30" fill="#E24B4A" clip-path="url(#fc)"/>
+  <rect x="11" y="1" width="10" height="30" fill="#7F77DD" clip-path="url(#fc)"/>
+  <rect x="21" y="1" width="10" height="30" fill="#378ADD" clip-path="url(#fc)"/>
   <!-- 구분선 -->
-  <line x1="11" y1="1" x2="11" y2="25" stroke="white" stroke-opacity="0.25" stroke-width="0.8"/>
-  <line x1="21" y1="1" x2="21" y2="25" stroke="white" stroke-opacity="0.25" stroke-width="0.8"/>
+  <line x1="11" y1="1" x2="11" y2="31" stroke="white" stroke-opacity="0.25" stroke-width="0.8"/>
+  <line x1="21" y1="1" x2="21" y2="31" stroke="white" stroke-opacity="0.25" stroke-width="0.8"/>
   <!-- 테두리 -->
-  <rect x="1" y="1" width="30" height="24" rx="6" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="0.8"/>
+  <rect x="1" y="1" width="30" height="30" rx="7" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="0.8"/>
   <!-- P 마크 -->
-  <text x="16" y="13" text-anchor="middle" dominant-baseline="central"
-        font-size="16" font-weight="700" fill="white"
+  <text x="16" y="16" text-anchor="middle" dominant-baseline="central"
+        font-size="17" font-weight="700" fill="white"
         font-family="system-ui,-apple-system,sans-serif">P</text>
-  <!-- 말풍선 꼬리 -->
-  <path d="M13,25 L16,31 L19,25 Z" fill="#7F77DD"/>
 </svg>

@@ -10,7 +10,9 @@ use App\Models\Vote;
 use App\Observers\CommentObserver;
 use App\Observers\PostObserver;
 use App\Observers\VoteObserver;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -45,5 +47,17 @@ class AppServiceProvider extends ServiceProvider
         Post::observe(PostObserver::class);
         Comment::observe(CommentObserver::class);
         Vote::observe(VoteObserver::class);
+
+        // -----------------------------------------------------------------
+        // Gemini API 큐 Job Rate Limiter
+        // -----------------------------------------------------------------
+
+        // 무료 티어: 15 RPM → Post(grounding포함 최대 2콜) + Comment 합산
+        // 안전 마진 확보: 분당 최대 10 Job 처리
+        // - 10 Job × 평균 1.2 API콜 = ~12 RPM (한도 내)
+        // - 초과 시 job을 큐에 release (tries 차감 없음), 다음 슬롯에서 재처리
+        RateLimiter::for('gemini', function (object $job) {
+            return Limit::perMinute(10);
+        });
     }
 }

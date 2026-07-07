@@ -7,15 +7,20 @@ import QuillEditor from '@/Components/QuillEditor.vue'
 defineOptions({ layout: AppLayout })
 
 const props = defineProps({
-  board: Object,  // { id, name, slug, board_type }
+  board: Object,  // { id, name, slug, board_type, categories }
 })
 
 const page = usePage()
 const user = computed(() => page.props.auth?.user)
 
+const hasCategories = computed(() =>
+  Array.isArray(props.board?.categories) && props.board.categories.length > 0
+)
+
 const form = useForm({
-  title:   '',
-  content: '',
+  title:    '',
+  content:  '',
+  category: null,
 })
 
 const submit = () => {
@@ -43,6 +48,39 @@ const submit = () => {
     <!-- 폼 -->
     <div class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl overflow-hidden">
       <form @submit.prevent="submit">
+
+        <!-- 카테고리 (말머리) 선택 — board에 categories가 있을 때만 노출 -->
+        <div v-if="hasCategories" class="p-4 border-b border-gray-200 dark:border-slate-800">
+          <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2.5">말머리 선택 <span class="font-normal text-slate-400">(선택사항)</span></p>
+          <div class="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              @click="form.category = null"
+              :class="[
+                'px-3 py-1 rounded-full text-xs font-semibold border transition-all',
+                !form.category
+                  ? 'bg-slate-700 dark:bg-slate-500 text-white border-transparent'
+                  : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-gray-200 dark:border-slate-700 hover:border-slate-400'
+              ]"
+            >
+              없음
+            </button>
+            <button
+              v-for="cat in board.categories"
+              :key="cat"
+              type="button"
+              @click="form.category = (form.category === cat ? null : cat)"
+              :class="[
+                'px-3 py-1 rounded-full text-xs font-semibold border transition-all',
+                form.category === cat
+                  ? 'bg-violet-600 text-white border-transparent'
+                  : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-gray-200 dark:border-slate-700 hover:border-violet-400 hover:text-violet-600'
+              ]"
+            >
+              {{ cat }}
+            </button>
+          </div>
+        </div>
 
         <!-- 제목 -->
         <div class="p-5 border-b border-gray-200 dark:border-slate-800">

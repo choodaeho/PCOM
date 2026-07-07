@@ -4,12 +4,13 @@ import { Link, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import FactionBadge from '@/Components/FactionBadge.vue'
 import LevelXpContent from '@/Components/LevelXpContent.vue'
+import Pagination from '@/Components/Pagination.vue'
 
 defineOptions({ layout: AppLayout })
 
 const props = defineProps({
-    recentPosts:    { type: Array,  default: () => [] },
-    recentComments: { type: Array,  default: () => [] },
+    posts:    { type: Object, default: () => ({ data: [], meta: {}, links: [] }) },
+    comments: { type: Object, default: () => ({ data: [], meta: {}, links: [] }) },
     stats: {
         type: Object,
         default: () => ({ post_count: 0, comment_count: 0, vote_up_count: 0 }),
@@ -424,50 +425,63 @@ const awardedCount = computed(() => props.badges.length)
             </div>
         </div>
 
-        <!-- 최근 게시글 -->
+        <!-- 작성 게시글 -->
         <div class="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 mb-6">
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-800">
-                <h2 class="text-slate-900 dark:text-white font-semibold">최근 게시글</h2>
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-800 flex items-center gap-2">
+                <h2 class="text-slate-900 dark:text-white font-semibold">작성 게시글</h2>
+                <span class="text-xs text-slate-400 dark:text-slate-500 font-normal">총 {{ stats.post_count }}개</span>
             </div>
-            <div v-if="recentPosts.length === 0" class="px-6 py-8 text-center text-slate-400 dark:text-slate-500 text-sm">
+            <div v-if="(posts.data ?? []).length === 0" class="px-6 py-8 text-center text-slate-400 dark:text-slate-500 text-sm">
                 작성한 게시글이 없습니다.
             </div>
             <div v-else class="divide-y divide-gray-200 dark:divide-slate-800">
-                <div v-for="post in recentPosts" :key="post.id" class="px-6 py-3 hover:bg-gray-100/30 dark:hover:bg-slate-800/30 transition-colors">
-                    <Link :href="`/boards/${post.board?.slug}/posts/${post.id}`" class="flex items-center justify-between group">
-                        <div>
-                            <span class="text-slate-700 dark:text-slate-200 group-hover:text-slate-900 dark:group-hover:text-white text-sm transition-colors line-clamp-1">
-                                {{ post.title }}
-                            </span>
-                            <span class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{{ post.board?.name }}</span>
-                        </div>
-                        <div class="flex items-center gap-3 text-xs text-slate-400 dark:text-slate-500 shrink-0 ml-4">
-                            <span>👍 {{ post.vote_up_count }}</span>
-                            <span>💬 {{ post.comment_count }}</span>
-                            <span>{{ new Date(post.created_at).toLocaleDateString('ko') }}</span>
-                        </div>
-                    </Link>
-                </div>
+                <Link
+                    v-for="post in posts.data"
+                    :key="post.id"
+                    :href="`/boards/${post.board?.slug}/posts/${post.id}`"
+                    class="flex items-center justify-between px-6 py-3 hover:bg-gray-100/30 dark:hover:bg-slate-800/30 transition-colors group"
+                >
+                    <div class="min-w-0">
+                        <p class="text-slate-700 dark:text-slate-200 group-hover:text-slate-900 dark:group-hover:text-white text-sm transition-colors line-clamp-1">{{ post.title }}</p>
+                        <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{{ post.board?.name }}</p>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs text-slate-400 dark:text-slate-500 shrink-0 ml-4">
+                        <span class="text-emerald-500">👍 {{ post.vote_up_count }}</span>
+                        <span>💬 {{ post.comment_count }}</span>
+                        <span class="hidden sm:inline">{{ new Date(post.created_at).toLocaleDateString('ko') }}</span>
+                    </div>
+                </Link>
+            </div>
+            <div v-if="(posts.meta?.last_page ?? posts.last_page ?? 1) > 1" class="px-6 py-4 border-t border-gray-100 dark:border-slate-800">
+                <Pagination :links="posts.links" />
             </div>
         </div>
 
-        <!-- 최근 댓글 -->
+        <!-- 작성 댓글 -->
         <div class="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 mb-6">
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-800">
-                <h2 class="text-slate-900 dark:text-white font-semibold">최근 댓글</h2>
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-800 flex items-center gap-2">
+                <h2 class="text-slate-900 dark:text-white font-semibold">작성 댓글</h2>
+                <span class="text-xs text-slate-400 dark:text-slate-500 font-normal">총 {{ stats.comment_count }}개</span>
             </div>
-            <div v-if="recentComments.length === 0" class="px-6 py-8 text-center text-slate-400 dark:text-slate-500 text-sm">
+            <div v-if="(comments.data ?? []).length === 0" class="px-6 py-8 text-center text-slate-400 dark:text-slate-500 text-sm">
                 작성한 댓글이 없습니다.
             </div>
             <div v-else class="divide-y divide-gray-200 dark:divide-slate-800">
-                <div v-for="comment in recentComments" :key="comment.id" class="px-6 py-3">
-                    <p class="text-slate-600 dark:text-slate-300 text-sm line-clamp-2">{{ comment.content }}</p>
+                <Link
+                    v-for="comment in comments.data"
+                    :key="comment.id"
+                    :href="`/boards/${comment.post?.board?.slug}/posts/${comment.post_id}`"
+                    class="block px-6 py-3 hover:bg-gray-100/30 dark:hover:bg-slate-800/30 transition-colors group"
+                >
+                    <p class="text-slate-600 dark:text-slate-300 text-sm line-clamp-2 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{{ comment.content }}</p>
                     <div class="flex items-center gap-2 mt-1 text-xs text-slate-400 dark:text-slate-500">
-                        <span>{{ comment.post?.title }}</span>
-                        <span>·</span>
-                        <span>{{ new Date(comment.created_at).toLocaleDateString('ko') }}</span>
+                        <span class="line-clamp-1 min-w-0">{{ comment.post?.title }}</span>
+                        <span class="shrink-0">· {{ new Date(comment.created_at).toLocaleDateString('ko') }}</span>
                     </div>
-                </div>
+                </Link>
+            </div>
+            <div v-if="(comments.meta?.last_page ?? comments.last_page ?? 1) > 1" class="px-6 py-4 border-t border-gray-100 dark:border-slate-800">
+                <Pagination :links="comments.links" />
             </div>
         </div>
 

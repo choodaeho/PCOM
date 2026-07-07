@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { Link, router } from '@inertiajs/vue3'
+import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
 defineOptions({ layout: AppLayout })
@@ -20,6 +20,10 @@ const currentId = computed(() => props.document.id)
 </script>
 
 <template>
+<Head title="청소년보호정책">
+  <meta name="description" content="폴릿 청소년보호정책 — 청소년 보호를 위한 조치 및 정책을 안내합니다." />
+  <meta name="robots" content="noindex" />
+</Head>
   <div class="max-w-6xl mx-auto px-4 py-10">
 
     <!-- 이전 버전 경고 배너 -->

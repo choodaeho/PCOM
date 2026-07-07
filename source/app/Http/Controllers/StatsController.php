@@ -10,7 +10,9 @@ use App\Models\FactionYearlyStat;
 use App\Models\Post;
 use App\Models\Report;
 use App\Services\FactionScoreService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -20,7 +22,10 @@ class StatsController extends Controller
 
     public function index(Request $request): Response
     {
-        $period  = $request->query('period', 'daily'); // daily | monthly | yearly
+        $period      = $request->query('period', 'daily'); // daily | weekly | monthly | yearly
+        $searchDate  = (string) $request->query('date', '');
+        $medalPeriod = (string) $request->query('medal_period', 'weekly'); // weekly | monthly | yearly
+
         $factions = ['conservative', 'moderate', 'progressive'];
         $today    = now()->toDateString();
 
@@ -65,81 +70,193 @@ class StatsController extends Controller
             $factionStats[$faction]['rank'] = ($ranks[$faction] ?? 0) + 1;
         }
 
-        // period별 차트 데이터
+        // period별 차트 데이터 (주간 탭 삭제됨)
         $periodData = match ($period) {
-            'monthly' => $this->getMonthlyData(),
-            'yearly'  => $this->getYearlyData(),
-            default   => $this->getDailyData(30),
+            'monthly' => $this->getMonthlyData($searchDate),
+            'yearly'  => $this->getYearlyData($searchDate),
+            default   => $this->getDailyData(),
         };
+
+        // 메달 집계 (항상 현재 시점 기준)
+        $medalData = $this->getMedalData($medalPeriod);
 
         return Inertia::render('Stats/Index', [
             'factionStats'  => $factionStats,
             'periodData'    => $periodData,
             'currentPeriod' => $period,
+            'searchDate'    => $searchDate,
+            'medalData'     => $medalData,
+            'medalPeriod'   => $medalPeriod,
         ]);
     }
 
-    private function getDailyData(int $days = 30): array
+    /**
+     * 일간: 항상 오늘의 실시간 점수 1개 포인트만 반환.
+     */
+    private function getDailyData(): array
     {
-        $rows = FactionDailyStat::where('stat_date', '>=', now()->subDays($days)->toDateString())
+        $scores = $this->scoreService->getRealtimeScores();
+
+        return [[
+            'date'         => now()->toDateString(),
+            'conservative' => round((float) ($scores['conservative'] ?? 0), 2),
+            'moderate'     => round((float) ($scores['moderate']     ?? 0), 2),
+            'progressive'  => round((float) ($scores['progressive']  ?? 0), 2),
+        ]];
+    }
+
+    /**
+     * 월간: 해당 연도의 1월 ~ 마지막 완료 월 데이터.
+     * - 현재 연도: 1월 ~ (현재 월 - 1)  (미도래 월 표기 안 함)
+     * - 과거 연도: 1월 ~ 12월
+     * - searchDate: "YYYY" 형식 (연도 선택용)
+     */
+    private function getMonthlyData(string $searchDate = ''): array
+    {
+        $year = ($searchDate !== '' && ctype_digit(substr($searchDate, 0, 4)))
+            ? (int) substr($searchDate, 0, 4)
+            : now()->year;
+
+        $lastMonth = ($year === now()->year)
+            ? now()->month - 1   // 현재 연도는 전월까지
+            : 12;                // 과거 연도는 12월까지
+
+        if ($lastMonth < 1) {
+            return [];  // 1월인 경우 아직 완료된 월 없음
+        }
+
+        $from = sprintf('%04d-01', $year);
+        $to   = sprintf('%04d-%02d', $year, $lastMonth);
+
+        $rows = FactionMonthlyStat::whereBetween('stat_year_month', [$from, $to])
+            ->orderBy('stat_year_month')
+            ->get();
+
+        $map = [];
+        foreach ($rows as $row) {
+            $ym = $row->stat_year_month;
+            if (!isset($map[$ym])) {
+                $map[$ym] = ['date' => $ym, 'conservative' => 0.0, 'moderate' => 0.0, 'progressive' => 0.0];
+            }
+            $faction      = $row->faction_type instanceof \App\Enums\FactionType
+                ? $row->faction_type->value
+                : (string) $row->faction_type;
+            $map[$ym][$faction] = round((float) ($row->total_raw_score ?? 0), 2);
+        }
+
+        return array_values($map);
+    }
+
+    /**
+     * 연간: 해당 연도의 월별 수치 + 연간 합계 포인트.
+     * - 월별: getMonthlyData()와 동일 (1월 ~ 마지막 완료 월)
+     * - 연간합계: FactionYearlyStat이 있으면 사용, 없으면 월별 합산
+     */
+    private function getYearlyData(string $searchDate = ''): array
+    {
+        $year = ($searchDate !== '' && ctype_digit(substr($searchDate, 0, 4)))
+            ? (int) substr($searchDate, 0, 4)
+            : now()->year;
+
+        $monthlyData = $this->getMonthlyData((string) $year);
+
+        if (empty($monthlyData)) {
+            return [];
+        }
+
+        // 연간합계: DB에 연간 집계가 있으면 사용, 없으면 월별 합산
+        $totals = ['conservative' => 0.0, 'moderate' => 0.0, 'progressive' => 0.0];
+        $yearlyRows = FactionYearlyStat::where('stat_year', $year)->get();
+
+        if ($yearlyRows->isNotEmpty()) {
+            foreach ($yearlyRows as $row) {
+                $faction      = $row->faction_type instanceof \App\Enums\FactionType
+                    ? $row->faction_type->value
+                    : (string) $row->faction_type;
+                $totals[$faction] = round((float) ($row->total_raw_score ?? 0), 2);
+            }
+        } else {
+            foreach ($monthlyData as $m) {
+                $totals['conservative'] += $m['conservative'];
+                $totals['moderate']     += $m['moderate'];
+                $totals['progressive']  += $m['progressive'];
+            }
+            $totals = array_map(fn ($v) => round($v, 2), $totals);
+        }
+
+        $monthlyData[] = array_merge(['date' => '연간합계'], $totals);
+
+        return $monthlyData;
+    }
+
+    /**
+     * 메달 집계 — 각 날짜별 진영 순위를 산출해 금/은/동 개수를 카운팅.
+     * 항상 현재 시점(today) 기준으로 period 범위를 결정.
+     */
+    private function getMedalData(string $period = 'weekly'): array
+    {
+        $base = now();
+
+        [$from, $to] = match ($period) {
+            'monthly' => [
+                $base->copy()->startOfMonth()->toDateString(),
+                $base->copy()->endOfMonth()->toDateString(),
+            ],
+            'yearly'  => [
+                $base->copy()->startOfYear()->toDateString(),
+                $base->copy()->endOfYear()->toDateString(),
+            ],
+            default   => [   // weekly
+                $base->copy()->startOfWeek()->toDateString(),
+                $base->copy()->endOfWeek()->toDateString(),
+            ],
+        };
+
+        // 날짜별 진영 순위 — WHERE 는 윈도우 함수 이전에 적용되므로 서브쿼리 불필요
+        $rankedRows = DB::table('factions_daily_stats')
+            ->selectRaw(
+                'stat_date::text AS stat_date,
+                 faction_type,
+                 raw_score,
+                 RANK() OVER (PARTITION BY stat_date ORDER BY raw_score DESC) AS day_rank'
+            )
+            ->whereBetween('stat_date', [$from, $to])
             ->orderBy('stat_date')
             ->get();
 
-        $map = [];
-        foreach ($rows as $row) {
-            $date = $row->stat_date->toDateString();
-            if (!isset($map[$date])) {
-                $map[$date] = ['date' => $date, 'conservative' => 0, 'moderate' => 0, 'progressive' => 0];
+        $medals = [
+            'conservative' => ['gold' => 0, 'silver' => 0, 'bronze' => 0, 'total' => 0],
+            'moderate'     => ['gold' => 0, 'silver' => 0, 'bronze' => 0, 'total' => 0],
+            'progressive'  => ['gold' => 0, 'silver' => 0, 'bronze' => 0, 'total' => 0],
+        ];
+        $medalNames = [1 => 'gold', 2 => 'silver', 3 => 'bronze'];
+
+        foreach ($rankedRows as $row) {
+            $rank    = (int) $row->day_rank;
+            $faction = $row->faction_type;
+            $medal   = $medalNames[$rank] ?? null;
+            if ($medal !== null && isset($medals[$faction])) {
+                $medals[$faction][$medal]++;
+                $medals[$faction]['total']++;
             }
-            $faction         = $row->faction_type instanceof \App\Enums\FactionType
-                ? $row->faction_type->value
-                : $row->faction_type;
-            $map[$date][$faction] = $row->raw_score ?? 0;
         }
 
-        return array_values($map);
-    }
+        // 금→은→동 순 정렬
+        uasort($medals, static function (array $a, array $b): int {
+            if ($a['gold']   !== $b['gold'])   return $b['gold']   - $a['gold'];
+            if ($a['silver'] !== $b['silver']) return $b['silver'] - $a['silver'];
+            return $b['bronze'] - $a['bronze'];
+        });
 
-    private function getMonthlyData(): array
-    {
-        $rows = FactionMonthlyStat::orderBy('stat_year_month')
-            ->limit(24)
-            ->get();
+        $totalDays = $rankedRows->pluck('stat_date')->unique()->count();
 
-        $map = [];
-        foreach ($rows as $row) {
-            $key = $row->stat_year_month;
-            if (!isset($map[$key])) {
-                $map[$key] = ['date' => $key, 'conservative' => 0, 'moderate' => 0, 'progressive' => 0];
-            }
-            $faction      = $row->faction_type instanceof \App\Enums\FactionType
-                ? $row->faction_type->value
-                : $row->faction_type;
-            $map[$key][$faction] = $row->total_raw_score ?? $row->raw_score ?? 0;
-        }
-
-        return array_values($map);
-    }
-
-    private function getYearlyData(): array
-    {
-        $rows = FactionYearlyStat::orderBy('stat_year')
-            ->limit(10)
-            ->get();
-
-        $map = [];
-        foreach ($rows as $row) {
-            $key = (string) $row->stat_year;
-            if (!isset($map[$key])) {
-                $map[$key] = ['date' => $key, 'conservative' => 0, 'moderate' => 0, 'progressive' => 0];
-            }
-            $faction      = $row->faction_type instanceof \App\Enums\FactionType
-                ? $row->faction_type->value
-                : $row->faction_type;
-            $map[$key][$faction] = $row->total_raw_score ?? $row->raw_score ?? 0;
-        }
-
-        return array_values($map);
+        return [
+            'medals'     => $medals,
+            'period'     => $period,
+            'from'       => $from,
+            'to'         => $to,
+            'total_days' => $totalDays,
+        ];
     }
 
     public function personal(Request $request): Response

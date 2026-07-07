@@ -1,246 +1,456 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { Link, usePage } from '@inertiajs/vue3'
+import { ref, computed } from 'vue'
+import { Head, Link, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
 defineOptions({ layout: AppLayout })
 
 const page = usePage()
-const realtimeScores = computed(() => page.props.realtimeScores ?? {})
-const user = computed(() => page.props.auth?.user)
+const user            = computed(() => page.props.auth?.user)
+const realtimeScores  = computed(() => (page.props.realtimeScores as any[]) ?? [])
 
-const factions = [
-  {
-    type: 'conservative',
-    emoji: '🦅',
-    label: '보수',
-    bgClass: 'bg-red-500/10',
-    borderClass: 'border-red-500/40',
-    textClass: 'text-red-400',
-    description: '전통과 질서를 수호하고, 자유 시장과 강한 안보를 중시합니다. 검증된 가치와 원칙을 바탕으로 사회 안정을 추구합니다.',
-    keywords: ['#자유시장', '#강한안보', '#전통가치', '#작은정부'],
-  },
-  {
-    type: 'moderate',
-    emoji: '⚖️',
-    label: '중도',
-    bgClass: 'bg-violet-500/10',
-    borderClass: 'border-violet-500/40',
-    textClass: 'text-violet-400',
-    description: '좌우의 극단을 지양하고 실용적 해법을 추구합니다. 다양한 관점을 수용하며 합리적 타협을 통해 사회를 발전시킵니다.',
-    keywords: ['#실용주의', '#균형', '#합리적타협', '#중립'],
-  },
-  {
-    type: 'progressive',
-    emoji: '🕊️',
-    label: '진보',
-    bgClass: 'bg-blue-500/10',
-    borderClass: 'border-blue-500/40',
-    textClass: 'text-blue-400',
-    description: '평등과 사회 정의를 추구하고, 적극적 복지와 환경 보호를 지향합니다. 변화와 혁신을 통해 더 나은 사회를 만듭니다.',
-    keywords: ['#사회정의', '#복지확대', '#환경보호', '#평등'],
-  },
-]
-
-const scoreMap = computed(() => {
-  const raw = realtimeScores.value
-  const m: Record<string, { normalized_score: number }> = {}
-  if (!raw || typeof raw !== 'object') return m
-  Object.entries(raw).forEach(([faction, score]) => {
-    m[faction] = { normalized_score: Number(score) }
-  })
-  return m
+const props = defineProps({
+  hotPosts:    { type: Array as () => any[], default: () => [] },
+  battlePosts: { type: Array as () => any[], default: () => [] },
+  playPosts:   { type: Array as () => any[], default: () => [] },
+  notices:     { type: Array as () => any[], default: () => [] },
+  boards:      { type: Array as () => any[], default: () => [] },
 })
+
+// ── 탭 상태 ─────────────────────────────────────────────────────
+const activeTab = ref<'battle' | 'play'>('battle')
+const tabPosts  = computed(() => activeTab.value === 'battle' ? props.battlePosts : props.playPosts)
+
+// ── 진영 설정 ─────────────────────────────────────────────────────
+const factionConfig: Record<string, { label: string; color: string; emoji: string }> = {
+  conservative: { label: '보수', color: '#E24B4A', emoji: '🔴' },
+  moderate:     { label: '중도', color: '#7F77DD', emoji: '🟣' },
+  progressive:  { label: '진보', color: '#378ADD', emoji: '🔵' },
+}
+
+// ── 게시판 타입 설정 ──────────────────────────────────────────────
+const boardConfig: Record<string, { emoji: string; label: string }> = {
+  battle:     { emoji: '⚔️', label: '전쟁터' },
+  playground: { emoji: '🎡', label: '놀이터' },
+  notice:     { emoji: '📢', label: '공지' },
+}
+
+// ── 빠른 바로가기 분류 ────────────────────────────────────────────
+const battleBoards    = computed(() => props.boards.filter((b: any) => b.board_type === 'battle'))
+const playgroundBoards = computed(() => props.boards.filter((b: any) => b.board_type === 'playground'))
+
+// ── 로그인 유저 진영 정보 ─────────────────────────────────────────
+const userFaction  = computed(() => user.value?.political_type ? factionConfig[user.value.political_type] : null)
+const azitSlug     = computed(() => user.value?.political_type ? `${user.value.political_type}-azit` : null)
+
+// ── 상대시간 ──────────────────────────────────────────────────────
+const timeAgo = (dateStr: string): string => {
+  if (!dateStr) return ''
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60_000)
+  if (mins < 1)   return '방금'
+  if (mins < 60)  return `${mins}분 전`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}시간 전`
+  const days = Math.floor(hours / 24)
+  if (days < 7)   return `${days}일 전`
+  const d = new Date(dateStr)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getMonth() + 1}.${pad(d.getDate())}`
+}
+
+// ── 조회수 표기 (1000 → 1k) ──────────────────────────────────────
+const fmtView = (n: number): string =>
+  n >= 10_000 ? (n / 10_000).toFixed(1) + '만'
+  : n >= 1_000 ? (n / 1_000).toFixed(1) + 'k'
+  : String(n)
+
+// ── 인기글 순위 색상 ──────────────────────────────────────────────
+const rankColor = (i: number): string =>
+  i === 0 ? 'text-yellow-500 dark:text-yellow-400'
+  : i === 1 ? 'text-slate-400 dark:text-slate-500'
+  : i === 2 ? 'text-amber-600 dark:text-amber-500'
+  : 'text-gray-200 dark:text-slate-800'
 </script>
 
 <template>
+<Head>
+  <title>폴릿 — 보수·중도·진보 정치 커뮤니티</title>
+  <meta name="description" content="나의 정치 성향을 진단하고, 보수·중도·진보 진영 아지트와 전쟁터에서 자유롭게 토론하는 정치 커뮤니티" />
+  <meta property="og:title" content="폴릿 — 보수·중도·진보 정치 커뮤니티" />
+  <meta property="og:description" content="나의 정치 성향을 진단하고, 보수·중도·진보 진영 아지트와 전쟁터에서 자유롭게 토론하는 정치 커뮤니티" />
+  <meta property="og:type" content="website" />
+</Head>
   <div>
-    <!-- ── Hero ────────────────────────────────────────────────── -->
-    <section class="relative overflow-hidden">
-      <div class="absolute inset-0 bg-gradient-to-b from-violet-50 via-white to-gray-50 dark:from-slate-900 dark:via-slate-950 dark:to-slate-950 pointer-events-none" />
-      <div class="absolute inset-0 opacity-20 pointer-events-none"
-        style="background: radial-gradient(ellipse at 20% 50%, #E24B4A22 0%, transparent 60%),
-                           radial-gradient(ellipse at 80% 50%, #378ADD22 0%, transparent 60%),
-                           radial-gradient(ellipse at 50% 50%, #7F77DD22 0%, transparent 60%);" />
+    <!-- ════════════════════════════════════════════════════════
+         환영 배너 (비로그인 / 로그인 분기)
+         ════════════════════════════════════════════════════════ -->
 
-      <div class="relative max-w-7xl mx-auto px-4 py-24 text-center">
-        <div class="inline-flex items-center gap-2 bg-gray-100 dark:bg-slate-800/60 border border-gray-300 dark:border-slate-700 rounded-full px-4 py-1.5 text-xs text-slate-600 dark:text-slate-400 mb-8">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span>
-          실시간 정치 성향 커뮤니티
+    <!-- 비로그인 배너 -->
+    <div v-if="!user"
+      class="bg-gradient-to-r from-violet-600 via-indigo-600 to-violet-600 text-white"
+    >
+      <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3 min-w-0">
+          <span class="text-2xl flex-shrink-0">🗳️</span>
+          <div class="min-w-0">
+            <p class="font-bold text-sm sm:text-base leading-snug">정치 성향 커뮤니티 <strong>폴릿</strong>에 오신 것을 환영합니다</p>
+            <p class="text-violet-200 text-xs mt-0.5 hidden sm:block">성향 테스트로 나의 진영을 확인하고 커뮤니티에 참여하세요</p>
+          </div>
         </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <Link href="/political-test"
+            class="text-xs sm:text-sm font-bold bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+            🧭 테스트
+          </Link>
+          <Link href="/register"
+            class="text-xs sm:text-sm font-bold bg-white text-violet-700 hover:bg-violet-50 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+            회원가입
+          </Link>
+        </div>
+      </div>
+    </div>
 
-        <h1 class="text-5xl md:text-7xl font-black text-slate-900 dark:text-white mb-6 leading-tight tracking-tight">
-          진영을<br />
-          <span class="bg-gradient-to-r from-red-400 via-violet-400 to-blue-400 bg-clip-text text-transparent">
-            선택하라
+    <!-- 로그인 유저 퀵 배너 -->
+    <div v-else
+      class="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800"
+    >
+      <div class="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2 min-w-0">
+          <span v-if="userFaction" class="text-base flex-shrink-0">{{ userFaction.emoji }}</span>
+          <span class="text-sm font-medium text-gray-700 dark:text-slate-300 truncate">
+            <span v-if="userFaction" :style="{ color: userFaction.color }" class="font-bold">{{ userFaction.label }} </span>
+            <span class="font-bold">{{ user.nickname }}</span>님, 오늘도 논쟁해봅시다!
           </span>
-        </h1>
-
-        <p class="text-slate-600 dark:text-slate-400 text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
-          당신의 정치 성향을 진단하고, 같은 생각을 가진 사람들과 소통하세요.<br />
-          전쟁터에서 다른 진영과 치열하게 토론하세요.
-        </p>
-
-        <div class="flex flex-col sm:flex-row gap-4 justify-center">
-          <template v-if="!user">
-            <Link href="/political-test"
-              class="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white font-bold px-8 py-4 rounded-xl text-lg transition-all shadow-lg shadow-violet-500/20 hover:shadow-violet-500/40 hover:-translate-y-0.5">
-              <span>🧭</span> 성향 테스트 시작
-            </Link>
-            <Link href="/register"
-              class="inline-flex items-center gap-2 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 border border-gray-300 dark:border-slate-700 text-slate-900 dark:text-white font-semibold px-8 py-4 rounded-xl text-lg transition-all">
-              <span>👤</span> 회원가입
-            </Link>
-          </template>
-          <template v-else>
-            <Link href="/boards"
-              class="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white font-bold px-8 py-4 rounded-xl text-lg transition-all shadow-lg shadow-violet-500/20 hover:-translate-y-0.5">
-              <span>🏠</span> 커뮤니티 입장
-            </Link>
-          </template>
+        </div>
+        <div class="flex items-center gap-1.5 flex-shrink-0">
+          <Link v-if="azitSlug" :href="`/boards/${azitSlug}`"
+            class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-300 transition-colors whitespace-nowrap">
+            🏠 아지트
+          </Link>
+          <Link href="/boards/battle-politics"
+            class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-violet-100 dark:bg-violet-900/30 hover:bg-violet-200 dark:hover:bg-violet-900/50 text-violet-700 dark:text-violet-300 transition-colors whitespace-nowrap">
+            ⚔️ 전쟁터
+          </Link>
         </div>
       </div>
-    </section>
+    </div>
 
-    <!-- ── Main Section ─────────────────────────────────────────── -->
-    <section class="max-w-7xl mx-auto px-4 pb-20">
+    <!-- ════════════════════════════════════════════════════════
+         메인 컨텐츠
+         ════════════════════════════════════════════════════════ -->
+    <div class="max-w-7xl mx-auto px-4 py-5">
 
-      <!-- 진영 카드 -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
-        <div
-          v-for="f in factions"
-          :key="f.type"
-          :class="['rounded-2xl p-6 border transition-all hover:-translate-y-1 hover:shadow-lg', f.bgClass, f.borderClass]"
+      <!-- 공지사항 -->
+      <div v-if="notices.length" class="mb-4 space-y-1.5">
+        <Link
+          v-for="notice in notices"
+          :key="notice.id"
+          :href="`/boards/${notice.board_slug}/posts/${notice.id}`"
+          class="flex items-center gap-2 px-3 py-2 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/40 rounded-xl hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors group"
         >
-          <div class="text-4xl mb-4">{{ f.emoji }}</div>
-          <h3 :class="['text-2xl font-black mb-2', f.textClass]">{{ f.label }}</h3>
-          <p class="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-4">{{ f.description }}</p>
-          <div class="flex flex-wrap gap-2 mb-5">
-            <span
-              v-for="kw in f.keywords"
-              :key="kw"
-              :class="['text-xs px-2 py-0.5 rounded-full border bg-gray-50 dark:bg-slate-900/50', f.textClass, f.borderClass]"
-            >{{ kw }}</span>
-          </div>
-          <!-- Live score -->
-          <div v-if="scoreMap[f.type]" class="pt-4 border-t border-gray-200 dark:border-slate-700/50">
-            <div class="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 mb-1">
-              <span>실시간 영향력 점수</span>
-              <span :class="['font-bold text-sm', f.textClass]">
-                {{ scoreMap[f.type].normalized_score?.toFixed(1) ?? '-' }}
-              </span>
-            </div>
-            <div class="h-1.5 bg-gray-200 dark:bg-slate-800 rounded-full overflow-hidden">
-              <div
-                :class="['h-full rounded-full transition-all',
-                  f.type === 'conservative' ? 'bg-red-500'
-                  : f.type === 'moderate'   ? 'bg-violet-500'
-                  :                           'bg-blue-500']"
-                :style="{ width: Math.min(100, Math.max(0, scoreMap[f.type].normalized_score ?? 0)) + '%' }"
-              ></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 어떻게 시작하나요? -->
-      <div class="text-center mb-16">
-        <h2 class="text-3xl font-black text-slate-900 dark:text-white mb-12">어떻게 시작하나요?</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div class="flex flex-col items-center gap-4">
-            <div class="w-16 h-16 rounded-2xl bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-2xl">🧭</div>
-            <h4 class="font-bold text-slate-900 dark:text-white">1. 성향 테스트</h4>
-            <p class="text-slate-500 dark:text-slate-400 text-sm">간단한 설문으로 당신의 정치 성향을 진단합니다.</p>
-          </div>
-          <div class="flex flex-col items-center gap-4">
-            <div class="w-16 h-16 rounded-2xl bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-2xl">🏠</div>
-            <h4 class="font-bold text-slate-900 dark:text-white">2. 아지트 입장</h4>
-            <p class="text-slate-500 dark:text-slate-400 text-sm">같은 진영의 사람들과 자유롭게 소통합니다.</p>
-          </div>
-          <div class="flex flex-col items-center gap-4">
-            <div class="w-16 h-16 rounded-2xl bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-2xl">⚔️</div>
-            <h4 class="font-bold text-slate-900 dark:text-white">3. 전쟁터 토론</h4>
-            <p class="text-slate-500 dark:text-slate-400 text-sm">다른 진영과 치열한 토론으로 영향력을 키웁니다.</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- 🎡 놀이터 (하단 배치) -->
-      <div class="mb-16">
-        <div class="flex items-center justify-between mb-6">
-          <div class="flex items-center gap-3">
-            <h2 class="text-2xl font-black text-slate-900 dark:text-white">🎡 놀이터</h2>
-            <span class="text-xs text-slate-400 dark:text-slate-500 hidden sm:block">정치 무관 — 로그인 없이 누구나 자유롭게</span>
-          </div>
-          <Link
-            href="/boards/play-humor"
-            class="text-xs text-emerald-500 dark:text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1 font-medium"
-          >
-            놀이터 바로가기
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-            </svg>
-          </Link>
-        </div>
-
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <!-- 로또번호생성기 -->
-          <Link href="/tools"
-            class="group flex flex-col items-center gap-3 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 hover:border-emerald-600/50 hover:bg-emerald-900/10 rounded-2xl p-5 transition-all hover:-translate-y-1">
-            <div class="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
-              🎰
-            </div>
-            <div class="text-center">
-              <p class="text-sm font-bold text-slate-900 dark:text-white group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors">로또번호생성기</p>
-              <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">이번 주 행운의 번호</p>
-            </div>
-            <span class="text-xs bg-emerald-500/20 text-emerald-500 dark:text-emerald-400 px-2 py-0.5 rounded-full font-medium">운영중</span>
-          </Link>
-
-          <!-- 오늘의 운세 -->
-          <Link href="/tools"
-            class="group flex flex-col items-center gap-3 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 hover:border-emerald-600/50 hover:bg-emerald-900/10 rounded-2xl p-5 transition-all hover:-translate-y-1">
-            <div class="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
-              🔮
-            </div>
-            <div class="text-center">
-              <p class="text-sm font-bold text-slate-900 dark:text-white group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors">오늘의 운세</p>
-              <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">나의 띠별 오늘 운세</p>
-            </div>
-            <span class="text-xs bg-emerald-500/20 text-emerald-500 dark:text-emerald-400 px-2 py-0.5 rounded-full font-medium">운영중</span>
-          </Link>
-
-          <!-- 이상형 월드컵 - 준비중 -->
-          <div class="flex flex-col items-center gap-3 bg-gray-50 dark:bg-slate-900/50 border border-gray-200/50 dark:border-slate-800/50 rounded-2xl p-5 opacity-60">
-            <div class="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 flex items-center justify-center text-2xl">🏆</div>
-            <div class="text-center">
-              <p class="text-sm font-bold text-slate-500 dark:text-slate-400">이상형 월드컵</p>
-              <p class="text-xs text-slate-400 dark:text-slate-600 mt-0.5">나의 이상형 정치인은?</p>
-            </div>
-            <span class="text-xs bg-gray-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 px-2 py-0.5 rounded-full font-medium">준비중</span>
-          </div>
-
-          <!-- 시사 퀴즈 - 준비중 -->
-          <div class="flex flex-col items-center gap-3 bg-gray-50 dark:bg-slate-900/50 border border-gray-200/50 dark:border-slate-800/50 rounded-2xl p-5 opacity-60">
-            <div class="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 flex items-center justify-center text-2xl">🧩</div>
-            <div class="text-center">
-              <p class="text-sm font-bold text-slate-500 dark:text-slate-400">시사 퀴즈</p>
-              <p class="text-xs text-slate-400 dark:text-slate-600 mt-0.5">오늘의 시사 상식 도전</p>
-            </div>
-            <span class="text-xs bg-gray-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 px-2 py-0.5 rounded-full font-medium">준비중</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- CTA -->
-      <div class="text-center bg-gradient-to-r from-violet-50 via-purple-50 to-violet-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 border border-violet-200 dark:border-slate-700 rounded-2xl p-12">
-        <h2 class="text-3xl font-black text-slate-900 dark:text-white mb-4">지금 시작하세요</h2>
-        <p class="text-slate-500 dark:text-slate-400 mb-8">성향 테스트로 나의 진영을 확인하고 커뮤니티에 참여하세요.</p>
-        <Link href="/register"
-          class="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white font-bold px-10 py-4 rounded-xl text-lg transition-all shadow-lg shadow-violet-500/20 hover:-translate-y-0.5">
-          시작하기 →
+          <span class="flex-shrink-0 text-[10px] font-bold text-violet-600 dark:text-violet-400 bg-violet-100 dark:bg-violet-900/40 px-1.5 py-0.5 rounded">📢 공지</span>
+          <span class="text-sm font-medium text-gray-700 dark:text-slate-300 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors truncate">
+            {{ notice.title }}
+          </span>
+          <span class="text-xs text-gray-400 dark:text-slate-500 flex-shrink-0 ml-auto">{{ timeAgo(notice.created_at) }}</span>
         </Link>
       </div>
-    </section>
+
+      <!-- ── 2-Column Grid ── -->
+      <div class="grid grid-cols-1 lg:grid-cols-[1fr_288px] gap-5">
+
+        <!-- ══════════════════════════════════════════════════
+             LEFT: 메인 피드
+             ══════════════════════════════════════════════════ -->
+        <div class="min-w-0 space-y-4">
+
+          <!-- 🔥 실시간 인기글 ──────────────────────────────── -->
+          <div class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+            <!-- 헤더 -->
+            <div class="flex items-center gap-2 px-4 py-3 border-b border-gray-100 dark:border-slate-800">
+              <span class="text-base">🔥</span>
+              <h2 class="font-bold text-sm text-gray-800 dark:text-slate-200">실시간 인기글</h2>
+              <span class="text-[11px] text-gray-400 dark:text-slate-500 ml-auto">최근 7일 · 추천 순</span>
+            </div>
+
+            <!-- 빈 상태 -->
+            <div v-if="!hotPosts.length"
+              class="py-12 text-center text-sm text-gray-400 dark:text-slate-600">
+              아직 인기글이 없습니다.
+            </div>
+
+            <!-- 인기글 목록 (순위형 리스트) -->
+            <div v-else>
+              <Link
+                v-for="(post, i) in hotPosts"
+                :key="post.id"
+                :href="`/boards/${post.board_slug}/posts/${post.id}`"
+                class="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-800/40 transition-colors border-b border-gray-50 dark:border-slate-800/50 last:border-0 group"
+              >
+                <!-- 순위 번호 -->
+                <span :class="['text-sm font-black w-5 flex-shrink-0 text-center mt-0.5 tabular-nums', rankColor(i)]">
+                  {{ String(i + 1).padStart(2, '0') }}
+                </span>
+
+                <!-- 본문 -->
+                <div class="flex-1 min-w-0">
+                  <!-- 제목 행 -->
+                  <div class="flex items-start gap-1.5 mb-1">
+                    <span
+                      v-if="post.board_type && boardConfig[post.board_type]"
+                      class="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 leading-none mt-0.5 whitespace-nowrap"
+                    >{{ boardConfig[post.board_type].emoji }} {{ post.board_name }}</span>
+                    <span class="text-[13px] sm:text-sm font-medium text-gray-800 dark:text-slate-200 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors leading-snug line-clamp-1">
+                      {{ post.title }}
+                    </span>
+                    <span
+                      v-if="post.comment_count > 0"
+                      class="flex-shrink-0 text-violet-500 dark:text-violet-400 font-bold text-[13px] sm:text-sm leading-snug"
+                    >[{{ post.comment_count }}]</span>
+                  </div>
+
+                  <!-- 메타 행 -->
+                  <div class="flex items-center gap-1.5 text-[11px] text-gray-400 dark:text-slate-500 flex-wrap">
+                    <!-- 진영 + 작성자 -->
+                    <span
+                      v-if="post.faction && factionConfig[post.faction]"
+                      :style="{ color: factionConfig[post.faction].color }"
+                      class="font-semibold"
+                    >{{ factionConfig[post.faction].emoji }} {{ post.is_anonymous ? '익명' : (post.user?.nickname ?? '?') }}</span>
+                    <span v-else>{{ post.is_anonymous ? '익명' : (post.user?.nickname ?? '?') }}</span>
+
+                    <span class="text-gray-200 dark:text-slate-700">·</span>
+                    <span>{{ timeAgo(post.created_at) }}</span>
+
+                    <!-- 추천 / 조회 (우측) -->
+                    <span class="ml-auto flex items-center gap-2">
+                      <span
+                        :class="['flex items-center gap-0.5 font-semibold', post.vote_up_count >= 5 ? 'text-orange-500 dark:text-orange-400' : '']"
+                      >👍 {{ post.vote_up_count }}</span>
+                      <span class="hidden sm:flex items-center gap-0.5">👁 {{ fmtView(post.view_count) }}</span>
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            </div>
+          </div>
+
+          <!-- ⚔️ 전쟁터 / 🎡 놀이터 탭 ─────────────────────── -->
+          <div class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+            <!-- 탭 헤더 -->
+            <div class="flex border-b border-gray-100 dark:border-slate-800">
+              <button
+                @click="activeTab = 'battle'"
+                :class="[
+                  'flex items-center gap-1.5 px-4 py-3 text-sm font-bold transition-colors border-b-2 -mb-px',
+                  activeTab === 'battle'
+                    ? 'border-violet-600 text-violet-600 dark:text-violet-400'
+                    : 'border-transparent text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300',
+                ]"
+              >⚔️ 전쟁터</button>
+
+              <button
+                @click="activeTab = 'play'"
+                :class="[
+                  'flex items-center gap-1.5 px-4 py-3 text-sm font-bold transition-colors border-b-2 -mb-px',
+                  activeTab === 'play'
+                    ? 'border-violet-600 text-violet-600 dark:text-violet-400'
+                    : 'border-transparent text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300',
+                ]"
+              >🎡 놀이터</button>
+
+              <Link
+                :href="activeTab === 'battle' ? '/boards/battle-politics' : '/boards/play-humor'"
+                class="ml-auto px-4 py-3 text-xs text-gray-400 dark:text-slate-500 hover:text-violet-500 dark:hover:text-violet-400 flex items-center gap-0.5 transition-colors"
+              >더보기 →</Link>
+            </div>
+
+            <!-- 빈 상태 -->
+            <div v-if="!tabPosts.length"
+              class="py-12 text-center text-sm text-gray-400 dark:text-slate-600">
+              게시글이 없습니다.
+            </div>
+
+            <!-- 최신글 목록 -->
+            <div v-else>
+              <Link
+                v-for="post in tabPosts"
+                :key="post.id"
+                :href="`/boards/${post.board_slug}/posts/${post.id}`"
+                class="flex items-stretch gap-0 border-b border-gray-50 dark:border-slate-800/50 last:border-0 hover:bg-gray-50 dark:hover:bg-slate-800/40 transition-colors group"
+              >
+                <!-- 진영 색상 세로선 -->
+                <div
+                  class="w-[3px] flex-shrink-0 rounded-l"
+                  :style="{
+                    backgroundColor: post.faction && factionConfig[post.faction]
+                      ? factionConfig[post.faction].color + '60'
+                      : 'transparent',
+                  }"
+                ></div>
+
+                <!-- 본문 -->
+                <div class="flex-1 min-w-0 px-4 py-3">
+                  <!-- 제목 행 -->
+                  <div class="flex items-start gap-1.5 mb-1">
+                    <span
+                      class="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500 leading-none mt-0.5 whitespace-nowrap"
+                    >{{ post.board_name }}</span>
+                    <span class="text-[13px] sm:text-sm font-medium text-gray-800 dark:text-slate-200 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors leading-snug line-clamp-1">
+                      {{ post.title }}
+                    </span>
+                    <span
+                      v-if="post.comment_count > 0"
+                      class="flex-shrink-0 text-violet-500 dark:text-violet-400 font-bold text-[13px] sm:text-sm leading-snug"
+                    >[{{ post.comment_count }}]</span>
+                  </div>
+
+                  <!-- 메타 행 -->
+                  <div class="flex items-center gap-1.5 text-[11px] text-gray-400 dark:text-slate-500">
+                    <span
+                      v-if="post.faction && factionConfig[post.faction]"
+                      :style="{ color: factionConfig[post.faction].color }"
+                      class="font-semibold"
+                    >{{ factionConfig[post.faction].emoji }} {{ post.is_anonymous ? '익명' : (post.user?.nickname ?? '?') }}</span>
+                    <span v-else>{{ post.is_anonymous ? '익명' : (post.user?.nickname ?? '?') }}</span>
+
+                    <span class="text-gray-200 dark:text-slate-700">·</span>
+                    <span>{{ timeAgo(post.created_at) }}</span>
+
+                    <span v-if="post.vote_up_count > 0" class="ml-auto flex items-center gap-0.5">
+                      👍 <span class="font-semibold">{{ post.vote_up_count }}</span>
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            </div>
+          </div>
+
+        </div><!-- /LEFT -->
+
+        <!-- ══════════════════════════════════════════════════
+             RIGHT: 사이드바 (데스크탑 우측 / 모바일 하단)
+             ══════════════════════════════════════════════════ -->
+        <div class="space-y-4 lg:sticky lg:top-20 lg:self-start">
+
+          <!-- 📊 진영 점수 ──────────────────────────────────── -->
+          <div class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-slate-800">
+              <h3 class="font-bold text-sm text-gray-800 dark:text-slate-200 flex items-center gap-1.5">
+                <span>📊</span> 진영 점수
+              </h3>
+              <Link href="/stats" class="text-xs text-violet-500 dark:text-violet-400 hover:underline font-medium">
+                통계 →
+              </Link>
+            </div>
+            <div class="p-3 space-y-2">
+              <div
+                v-for="(item, i) in realtimeScores"
+                :key="(item as any).faction_type"
+                class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-colors"
+                :style="{ backgroundColor: (item as any).color + '18' }"
+              >
+                <span class="text-base flex-shrink-0">{{ ['🥇', '🥈', '🥉'][i] ?? '' }}</span>
+                <span class="text-sm font-bold" :style="{ color: (item as any).color }">
+                  {{ (item as any).emoji }} {{ (item as any).label }}
+                </span>
+                <span class="ml-auto text-base font-black tabular-nums" :style="{ color: (item as any).color }">
+                  {{ Math.round(((item as any).normalized_score ?? 0) * 100) }}
+                </span>
+              </div>
+              <div v-if="!realtimeScores.length" class="py-4 text-center text-xs text-gray-400 dark:text-slate-600">
+                집계 데이터 없음
+              </div>
+            </div>
+          </div>
+
+          <!-- ⚡ 게시판 바로가기 ────────────────────────────── -->
+          <div class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+            <div class="px-4 py-3 border-b border-gray-100 dark:border-slate-800">
+              <h3 class="font-bold text-sm text-gray-800 dark:text-slate-200 flex items-center gap-1.5">
+                <span>⚡</span> 게시판 바로가기
+              </h3>
+            </div>
+            <div class="p-3 space-y-3">
+              <!-- 전쟁터 -->
+              <div v-if="battleBoards.length">
+                <p class="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-1.5 px-0.5">
+                  ⚔️ 전쟁터
+                </p>
+                <div class="grid grid-cols-2 gap-1.5">
+                  <Link
+                    v-for="board in battleBoards"
+                    :key="board.id"
+                    :href="`/boards/${board.slug}`"
+                    class="text-xs px-2 py-2 rounded-lg bg-gray-50 dark:bg-slate-800 hover:bg-violet-50 dark:hover:bg-violet-900/30 text-gray-600 dark:text-slate-400 hover:text-violet-700 dark:hover:text-violet-300 transition-colors font-medium text-center truncate leading-snug"
+                  >{{ board.name }}</Link>
+                </div>
+              </div>
+
+              <!-- 놀이터 -->
+              <div v-if="playgroundBoards.length">
+                <p class="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-1.5 px-0.5">
+                  🎡 놀이터
+                </p>
+                <div class="grid grid-cols-2 gap-1.5">
+                  <Link
+                    v-for="board in playgroundBoards"
+                    :key="board.id"
+                    :href="`/boards/${board.slug}`"
+                    class="text-xs px-2 py-2 rounded-lg bg-gray-50 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-gray-600 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors font-medium text-center truncate leading-snug"
+                  >{{ board.name }}</Link>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 비로그인 CTA 카드 ──────────────────────────────── -->
+          <div v-if="!user"
+            class="bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-violet-900/20 dark:to-indigo-900/20 border border-violet-200 dark:border-violet-800/40 rounded-2xl p-5 text-center"
+          >
+            <div class="text-3xl mb-2">🧭</div>
+            <p class="text-sm font-bold text-gray-800 dark:text-slate-200 mb-1">나의 정치 성향은?</p>
+            <p class="text-xs text-gray-500 dark:text-slate-400 mb-4 leading-relaxed">
+              10문항으로 진영을 진단하고<br>커뮤니티에 참여하세요
+            </p>
+            <Link href="/political-test"
+              class="block text-sm font-bold bg-violet-600 hover:bg-violet-500 text-white px-4 py-2.5 rounded-xl transition-colors mb-2">
+              성향 테스트 시작 →
+            </Link>
+            <Link href="/register"
+              class="block text-xs font-medium text-gray-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors">
+              이미 계정이 있으신가요?
+              <span class="underline">로그인</span>
+            </Link>
+          </div>
+
+          <!-- 로그인 유저 — 아지트 바로가기 ──────────────────── -->
+          <div v-else-if="userFaction"
+            class="rounded-2xl p-4 border"
+            :style="{
+              backgroundColor: userFaction.color + '12',
+              borderColor: userFaction.color + '40',
+            }"
+          >
+            <div class="flex items-center gap-2 mb-3">
+              <span class="text-xl">{{ userFaction.emoji }}</span>
+              <div>
+                <p class="text-sm font-bold text-gray-800 dark:text-slate-200">
+                  <span :style="{ color: userFaction.color }">{{ userFaction.label }}</span> 아지트
+                </p>
+                <p class="text-xs text-gray-500 dark:text-slate-400">우리 진영 전용 공간</p>
+              </div>
+            </div>
+            <Link v-if="azitSlug" :href="`/boards/${azitSlug}`"
+              class="block text-xs font-bold text-center py-2 rounded-xl text-white transition-opacity hover:opacity-90"
+              :style="{ backgroundColor: userFaction.color }"
+            >아지트 입장 →</Link>
+          </div>
+
+        </div><!-- /RIGHT sidebar -->
+
+      </div><!-- /2-col grid -->
+    </div><!-- /max-w container -->
   </div>
 </template>

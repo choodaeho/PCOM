@@ -6,8 +6,10 @@ namespace App\Http\Controllers;
 
 use App\Enums\VoteType;
 use App\Models\Comment;
+use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Vote;
+use App\Services\NotificationService;
 use App\Services\UserLevelService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,8 +17,10 @@ use Illuminate\Support\Facades\DB;
 
 class VoteController extends Controller
 {
-    public function __construct(private readonly UserLevelService $levelService)
-    {
+    public function __construct(
+        private readonly UserLevelService    $levelService,
+        private readonly NotificationService $notificationService,
+    ) {
     }
 
     public function votePost(Request $request, Post $post): RedirectResponse
@@ -63,7 +67,8 @@ class VoteController extends Controller
         $voteType     = VoteType::from($validated['vote_type']);
         $voterFaction = $this->factionValue($request->user()->political_type);
 
-        $author = null;
+        $author  = null;
+        $wasHot  = $votable instanceof Post ? (bool) $votable->is_hot : false;
 
         DB::transaction(function () use ($request, $votable, $voteType, $voterFaction, &$author) {
             $existing      = $votable->votes()->where('user_id', $request->user()->id)->first();
@@ -74,7 +79,7 @@ class VoteController extends Controller
                 $oldType = $existing->vote_type;
 
                 if ($existing->vote_type === $voteType) {
-                    // 같은 타입 재클릭 → 취소 (이전 효과 되돌리기)
+                    // 같은 타입 재클릭 -> 취소 (이전 효과 되돌리기)
                     $existing->delete();
                     if ($author) {
                         $delta = $this->mannerDelta($voteType, $voterFaction, $authorFaction);
@@ -83,7 +88,7 @@ class VoteController extends Controller
                         }
                     }
                 } else {
-                    // 다른 타입으로 변경 → 이전 효과 되돌리고 새 효과 적용
+                    // 다른 타입으로 변경 -> 이전 효과 되돌리고 새 효과 적용
                     $existing->update(['vote_type' => $voteType]);
                     if ($author) {
                         $reverseDelta = $this->mannerDelta($oldType, $voterFaction, $authorFaction);
@@ -113,7 +118,30 @@ class VoteController extends Controller
                 'vote_up_count'   => $votable->votes()->where('vote_type', VoteType::Up->value)->count(),
                 'vote_down_count' => $votable->votes()->where('vote_type', VoteType::Down->value)->count(),
             ]);
+            $votable->refresh();
+
+            // 인기글 자동 등재: Post + 추천 threshold 초과 + 아직 미등재 상태
+            // FM코리아 방식: 한번 등재되면 추천 감소해도 유지 (is_hot = false 로 돌리지 않음)
+            if ($votable instanceof Post && ! $votable->is_hot) {
+                $votable->loadMissing('board');
+                $threshold = $votable->board?->board_type?->hotThreshold() ?? 5;
+                if ($votable->vote_up_count >= $threshold) {
+                    Post::where('id', $votable->id)->update(['is_hot' => true]);
+                    $votable->is_hot = true;
+                }
+            }
         });
+
+        // 인기글 등재 알림 (트랜잭션 밖에서 발송 — 중복 방지)
+        if ($votable instanceof Post && $votable->is_hot && ! $wasHot) {
+            $alreadyNotified = Notification::where('user_id', $votable->user_id)
+                ->where('type', 'hot')
+                ->whereRaw("data->>'post_id' = ?", [(string) $votable->id])
+                ->exists();
+            if (! $alreadyNotified) {
+                $this->notificationService->notifyHotPost($votable);
+            }
+        }
 
         // 트랜잭션 완료 후 게시물/댓글 작성자의 XP 동기화
         if ($author !== null) {

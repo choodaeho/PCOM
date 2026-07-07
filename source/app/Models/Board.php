@@ -26,6 +26,7 @@ class Board extends Model
         'is_active',
         'allow_anonymous',
         'post_count',
+        'categories',
         'admin_memo',
         'created_by',
     ];
@@ -38,6 +39,7 @@ class Board extends Model
             'post_count'      => 'integer',
             'is_active'       => 'boolean',
             'allow_anonymous' => 'boolean',
+            'categories'      => 'array',   // JSONB → PHP array
         ];
     }
 

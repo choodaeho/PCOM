@@ -27,8 +27,17 @@ class PoliticalTestController extends Controller
             $request->session()->put('political_test_source', $request->query('source'));
         }
 
+        // 활성 문항에서 10개를 무작위로 선택하여 출제
+        $questions = $this->testService->getRandomQuestions(10);
+
+        // 채점 일관성을 위해 출제된 문항 ID를 세션에 저장
+        $request->session()->put(
+            'political_test_question_ids',
+            $questions->pluck('id')->toArray(),
+        );
+
         return Inertia::render('PoliticalTest/Show', [
-            'questions' => $this->testService->getActiveQuestions(),
+            'questions' => $questions,
             'source'    => $request->session()->get('political_test_source'),
         ]);
     }
@@ -53,15 +62,18 @@ class PoliticalTestController extends Controller
             ->map(fn ($v) => (int) $v)
             ->all();
 
+        // show()에서 저장해 둔 출제 문항 ID (없으면 빈 배열 → 서비스에서 전체 활성 문항 사용)
+        $questionIds = $request->session()->get('political_test_question_ids', []);
+
         if (Auth::check()) {
             // 로그인 사용자: DB에 저장
-            $this->testService->submitAndSave(Auth::user(), $answersMap);
+            $this->testService->submitAndSave(Auth::user(), $answersMap, $questionIds);
 
             return redirect()->route('political-test.result');
         }
 
         // 비로그인: 계산만 하고 세션에 보관
-        $result = $this->testService->computeResult($answersMap);
+        $result = $this->testService->computeResult($answersMap, $questionIds);
         $request->session()->put('political_test_guest_result', $result);
 
         return redirect()->route('political-test.result');

@@ -23,17 +23,26 @@ class ProfileController extends Controller
     {
         $user = $request->user()->loadCount(['posts', 'comments']);
 
-        $recentPosts = $user->posts()
+        $posts = $user->posts()
             ->with('board:id,name,slug')
+            ->where('status', 'published')
             ->latest()
-            ->limit(10)
-            ->get(['id', 'title', 'vote_up_count', 'comment_count', 'created_at', 'board_id']);
+            ->paginate(
+                20,
+                ['id', 'title', 'vote_up_count', 'comment_count', 'created_at', 'board_id'],
+                'posts_page'
+            )
+            ->withQueryString();
 
-        $recentComments = $user->comments()
-            ->with('post:id,title')
+        $comments = $user->comments()
+            ->with('post:id,title,board_id', 'post.board:id,slug')
             ->latest()
-            ->limit(10)
-            ->get(['id', 'content', 'created_at', 'post_id']);
+            ->paginate(
+                20,
+                ['id', 'content', 'created_at', 'post_id'],
+                'comments_page'
+            )
+            ->withQueryString();
 
         // 게시글 누적 통계
         $postStats = Post::where('user_id', $user->id)
@@ -70,8 +79,8 @@ class ProfileController extends Controller
             ->get(['badge_key', 'awarded_at']);
 
         return Inertia::render('Profile/Index', [
-            'recentPosts'    => $recentPosts,
-            'recentComments' => $recentComments,
+            'posts'          => $posts,
+            'comments'       => $comments,
             'stats'          => [
                 'post_count'    => $user->posts_count,
                 'comment_count' => $user->comments_count,

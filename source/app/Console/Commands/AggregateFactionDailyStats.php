@@ -86,7 +86,9 @@ class AggregateFactionDailyStats extends Command
 
     private function aggregateMonthly(Carbon $date): void
     {
-        $yearMonth = $date->subMonth()->format('Y-m');
+        // $date는 이미 "어제" → 스케줄이 익월 1일 00:10에 실행되면 $date = 전월 말일
+        // subMonth() 제거: June 30을 받으면 "2026-06"이 올바른 집계 대상
+        $yearMonth = $date->format('Y-m');
         $this->info("📅 [월간] {$yearMonth} 롤업 시작...");
 
         try {
@@ -127,7 +129,9 @@ class AggregateFactionDailyStats extends Command
 
     private function aggregateYearly(Carbon $date): void
     {
-        $year = $date->subYear()->year;
+        // $date는 "어제" → 1월 1일 00:15에 실행되면 $date = 12월 31일(전년도)
+        // subYear() 제거: Dec 31 2025를 받으면 year = 2025가 올바른 집계 대상
+        $year = $date->year;
         $this->info("📆 [연간] {$year}년 롤업 시작...");
 
         try {

@@ -52,3 +52,14 @@ Schedule::call(function () {
         ->where('suspended_until', '<=', now())
         ->update(['status' => 'active', 'suspended_until' => null]);
 })->hourly()->name('auto-restore-suspended-users');
+
+// ─────────────────────────────────────────────
+// AI 일일 콘텐츠 자동 생성
+// ─────────────────────────────────────────────
+
+// 매일 05:50 — is_enabled=true 일 때만 동작 (내부 조건 체크)
+Schedule::command('polit:generate-daily-content')
+    ->dailyAt('05:50')
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/generate-daily-content.log'));

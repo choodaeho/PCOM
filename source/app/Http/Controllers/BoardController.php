@@ -58,7 +58,13 @@ class BoardController extends Controller
     /**
      * 게시판 글 목록 (비로그인 가능).
      *
-     * allowed_faction을 Vue에 전달하여 클라이언트가 글쓰기 가능 여부를 판단하도록 함.
+     * 3단 필터 + 검색:
+     *   type        — 'all'(전체글) | 'hot'(인기글/화제글/베스트)
+     *   sort        — 'latest'(최신) | 'popular'(추천순) | 'views'(조회순)
+     *   category    — 말머리 필터 ('' = 전체)
+     *   faction     — 진영 필터 (전쟁터/놀이터 전용)
+     *   q           — 검색어
+     *   search_type — 'title'(제목) | 'content'(내용) | 'both'(제목+내용)
      */
     public function show(Request $request, Board $board): Response
     {
@@ -66,32 +72,83 @@ class BoardController extends Controller
             ->with(['user:id,nickname,political_type,level'])
             ->where('status', 'published');
 
-        // 전쟁터/놀이터에서 진영 필터 (선택적)
+        // ── type 필터: 인기글(is_hot) ────────────────────────────────
+        $type = $request->get('type', 'all');
+        if ($type === 'hot') {
+            $query->where('is_hot', true);
+        }
+
+        // ── 카테고리 필터 ─────────────────────────────────────────────
+        if ($request->filled('category')) {
+            $query->where('category', $request->category);
+        }
+
+        // ── 진영 필터 (전쟁터/놀이터) ────────────────────────────────
         if ($request->filled('faction') && in_array($board->board_type->value, ['battle', 'playground'], true)) {
             $query->where('faction', $request->faction);
         }
 
+        // ── 검색 ─────────────────────────────────────────────────────
+        // PostgreSQL ILIKE로 대소문자 무관 검색.
+        // content는 Quill HTML이므로 내용 검색 시 HTML 태그도 포함될 수 있으나,
+        // 실용적으로는 키워드가 텍스트 노드 안에 있어 충분히 동작함.
+        if ($request->filled('q')) {
+            $q          = '%' . trim($request->get('q')) . '%';
+            $searchType = $request->get('search_type', 'title');
+
+            $query->where(function ($sub) use ($q, $searchType): void {
+                if ($searchType === 'content') {
+                    $sub->whereRaw("content ilike ?", [$q]);
+                } elseif ($searchType === 'both') {
+                    $sub->where('title', 'ilike', $q)
+                        ->orWhereRaw("content ilike ?", [$q]);
+                } else {
+                    // 기본: 제목 검색
+                    $sub->where('title', 'ilike', $q);
+                }
+            });
+        }
+
+        // ── 정렬 ─────────────────────────────────────────────────────
         $sort = $request->get('sort', 'latest');
-        $query->when($sort === 'popular', fn ($q) => $q->orderByDesc('vote_up_count'))
-              ->when($sort === 'views',   fn ($q) => $q->orderByDesc('view_count'))
-              ->when($sort === 'latest',  fn ($q) => $q->latest());
+        if ($sort === 'popular') {
+            $query->orderByDesc('vote_up_count')->orderByDesc('created_at');
+        } elseif ($sort === 'views') {
+            $query->orderByDesc('view_count')->orderByDesc('created_at');
+        } else {
+            // 최신순 기본값: 공지글 항상 최상단
+            $query->orderByDesc('is_notice')->orderByDesc('created_at');
+        }
+
+        $boardType = $board->board_type;
+
+        // 모바일 UA 감지 → 데스크탑 20개 / 모바일 10개
+        $ua       = strtolower($request->header('User-Agent', ''));
+        $isMobile = (bool) preg_match('/(android|iphone|ipod|ipad|mobile|blackberry|windows phone)/i', $ua);
+        $perPage  = $isMobile ? 10 : 20;
 
         return Inertia::render('Boards/Show', [
             'board'   => array_merge(
                 $board->only(['id', 'name', 'slug', 'description']),
                 [
-                    'board_type'      => $board->board_type->value,  // 'azit' | 'battle' | 'playground' | 'notice'
-                    'allowed_faction' => $board->allowed_faction,    // fix: plain string, not enum
+                    'board_type'      => $boardType->value,
+                    'allowed_faction' => $board->allowed_faction,
+                    'categories'      => $board->categories ?? [],
+                    'hot_label'       => $boardType->hotLabel(),
+                    'hot_threshold'   => $boardType->hotThreshold(),
                 ]
             ),
-            'posts'   => $query->paginate(20)->withQueryString()->through(function ($post) {
+            'posts'   => $query->paginate($perPage)->withQueryString()->through(function ($post) {
                 if ($post->user) {
                     $lv = $post->user->level ?? 1;
                     $post->user->level_emoji = UserLevelService::LEVELS[$lv]['emoji'] ?? '🌱';
                 }
                 return $post;
             }),
-            'filters' => $request->only(['sort', 'faction']),
+            // PHP 빈 배열은 JSON []로 직렬화 → JS에서 [].sort가 함수 참조가 되어
+            // currentSort computed가 'latest'를 반환하지 못하는 버그 방지.
+            // (object) 캐스팅으로 빈 경우에도 JSON {} 객체로 직렬화되도록 강제.
+            'filters' => (object) $request->only(['type', 'sort', 'category', 'faction', 'q', 'search_type']),
         ]);
     }
 }

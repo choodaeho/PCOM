@@ -509,6 +509,21 @@ make fresh         # migrate:fresh --seed
 # 진영 점수 수동 집계
 make artisan CMD="polit:aggregate-daily"
 
+# AI 자동 콘텐츠 생성 (수동 1회 실행)
+docker compose exec app php artisan polit:generate-content
+
+# 큐 워커 실행 (AI 생성 Job 처리 — 별도 터미널에서 상시 실행)
+docker compose exec app php artisan queue:work --sleep=3 --tries=3
+
+# 큐 상태 모니터링
+docker compose exec app php artisan queue:monitor redis:default
+
+# 대기 중인 큐 비우기 (AI 생성 취소 시 사용)
+docker compose exec app php artisan queue:clear
+
+# 큐 워커 재시작 (코드 변경 후 워커에 반영)
+docker compose exec app php artisan queue:restart
+
 # Swagger 재생성
 make swagger
 
@@ -760,6 +775,67 @@ docker compose exec app composer require pragmarx/google2fa
 
 ---
 
+### Q: AI 자동 생성 실행 후 게시글이 올라오지 않음
+
+큐 워커가 실행 중이지 않으면 Job이 Redis에 쌓이기만 하고 실제 처리되지 않습니다.
+
+```bash
+# 워커 상태 확인 (아무 출력 없으면 실행 중이 아님)
+docker compose exec app php artisan queue:monitor redis:default
+
+# 워커 실행 (별도 터미널에서 상시 실행)
+docker compose exec app php artisan queue:work --sleep=3 --tries=3
+
+# AI 생성 로그에서 실행 상태 확인
+# http://localhost/admin/auto-content/logs
+```
+
+> **운영 환경**에서는 큐 워커를 Supervisor 또는 Docker CMD로 항상 실행 상태로 유지해야 합니다.
+
+---
+
+### Q: AI 생성 로그에서 "Gemini 응답 없음" 오류가 계속 발생함
+
+오류 메시지를 확인하면 실제 원인이 표시됩니다 (예: Rate-limit, 안전 필터 차단, HTTP 401).
+
+```bash
+# laravel.log에서 GeminiService 상세 오류 확인
+docker compose exec app grep -A3 "\[GeminiService\]" storage/logs/laravel.log | tail -60
+```
+
+| 오류 유형 | 원인 | 조치 |
+|---|---|---|
+| `HTTP 401` | API 키 오류 또는 만료 | `.env`의 `GEMINI_API_KEY` 확인 |
+| `HTTP 403` | Google Search 그라운딩 미지원 (무료 티어) | 관리자 패널 → 그라운딩 비활성화 |
+| `Rate-limit (429): 3회 재시도 후 실패` | 분당 15회 한도 초과 | 게시글 간격을 더 넓게 설정 |
+| `안전 필터 차단: HARM_CATEGORY_HATE_SPEECH` | 특정 주제가 Gemini 안전 정책에 걸림 | 해당 주제 삭제 또는 표현 변경 |
+| `모든 Gemini 모델에서 응답 실패` | 모든 모델(3개) 동시 장애 | Gemini API 상태 페이지 확인 후 재시도 |
+
+**모델 우선순위**: `gemini-2.0-flash-lite` → `gemini-2.0-flash` → `gemini-1.5-flash-latest`  
+앞 모델이 404 또는 사용 불가이면 자동으로 다음 모델로 전환됩니다.
+
+---
+
+### Q: 실행 중인 AI 생성을 강제로 멈추고 싶음
+
+**방법 1 — UI 중지 버튼 (권장)**
+1. 관리자 패널 → **AI 생성 로그** (`/admin/auto-content/logs`)
+2. 실행 중인 행의 **🟥 중지** 버튼 클릭
+3. 이미 큐에서 처리 중인 Job은 완료되고, **아직 시작 안 한 Job들은 건너뜀**
+
+> 중지 후 상태는 `stopping` → 마지막 Job 처리 후 자동으로 `stopped`로 변경됩니다.
+
+**방법 2 — 즉각적인 전체 큐 비우기 (주의)**
+```bash
+# 대기 중인 모든 Job 즉시 삭제 (다른 큐 작업도 삭제됨)
+docker compose exec app php artisan queue:clear
+
+# 현재 실행 중인 워커 안전 재시작 (코드 변경 후 워커 갱신)
+docker compose exec app php artisan queue:restart
+```
+
+---
+
 ### Q: 관리자가 `/login`(일반 로그인)으로 접속하면?
 
 "관리자 계정은 관리자 전용 로그인 페이지를 이용해주세요." 오류가 표시되며 로그인이 차단됩니다.  
@@ -810,4 +886,196 @@ App\Models\User::where('is_admin',true)\
 
 ---
 
-*최종 수정: 2026-06-17 (Permission denied Q&A 전면 개선 — `-u root` 필수, Windows 마운트 대응, 캐시 초기화 단계 추가)*
+---
+
+## 10. AI 자동 콘텐츠 생성 시스템
+
+### 개요
+
+폴릿의 초기 활성화를 위해 **Gemini AI**가 진영별 게시글과 댓글을 자동으로 생성하는 기능입니다.  
+Google Search 그라운딩으로 최신 뉴스를 반영하고, Pixabay API로 관련 이미지를 첨부합니다.
+
+```
+생성 흐름:
+  Artisan Command
+    └→ GenerateAIPostJob × N (Redis 큐, 시간 분산)
+          └→ GeminiService (게시글 생성)
+          └→ NewsImageService (이미지 조회)
+          └→ Post 저장
+          └→ GenerateAICommentJob × M (게시글 생성 후 지연 예약)
+                └→ GeminiService (댓글 생성)
+                └→ Comment 저장
+```
+
+---
+
+### 10-1. API 키 설정
+
+`.env`에 아래 키를 추가합니다.
+
+```dotenv
+# Google Gemini API (무료 티어: 15 RPM / 1M tokens/day)
+# https://aistudio.google.com/app/apikey
+GEMINI_API_KEY=AIza...
+
+# Pixabay 이미지 API (무료 / 키 발급: https://pixabay.com/api/docs/)
+PIXABAY_API_KEY=12345-abcdef...
+```
+
+> 키가 없으면 이미지 없이 텍스트만 생성됩니다. Gemini 키가 없으면 생성 자체가 실패합니다.
+
+---
+
+### 10-2. 사용 모델
+
+| 우선순위 | 모델 | 특징 |
+|---|---|---|
+| 1 | `gemini-2.0-flash-lite` | 무료 티어 권장, 빠름 |
+| 2 | `gemini-2.0-flash` | 품질 우선 fallback |
+| 3 | `gemini-1.5-flash-latest` | 레거시 최종 fallback |
+
+앞 모델이 404(없음) 또는 장애 시 자동으로 다음 모델로 전환됩니다.  
+**429 Rate-limit**는 20초 → 40초 → 60초 간격으로 최대 3회 자동 재시도합니다.
+
+---
+
+### 10-3. 관리자 패널 — AI 자동생성 설정
+
+`/admin/auto-content` 에서 아래 항목을 설정합니다.
+
+| 설정 항목 | 설명 |
+|---|---|
+| 진영별 게시글 수 | 보수·중도·진보 각각 몇 건 생성할지 |
+| 게시판 선택 | 아지트 / 전쟁터 / 놀이터 중 선택 |
+| 게시글당 댓글 수 | 0~5건, 진영 혼합 |
+| 그라운딩 사용 | Google Search 뉴스 반영 여부 (실패 시 자동 비활성화) |
+| 이미지 첨부 | Pixabay 이미지 포함 여부 |
+| 즉시 실행 | 지금 바로 생성 시작 |
+
+---
+
+### 10-4. AI 생성 로그 메뉴
+
+관리자 패널 왼쪽 메뉴 → **AI 생성 로그** (`/admin/auto-content/logs`)
+
+#### 실행 목록 화면
+
+| 컬럼 | 내용 |
+|---|---|
+| 실행일 | 생성이 시작된 날짜 |
+| 유형 | `정기` (자동 스케줄) / `수동` (즉시 실행) / `테스트` |
+| 상태 뱃지 | `🟢 실행 중` / `⏸ 중지 중` / `✅ 완료` / `🛑 중지됨` / `❌ 실패` |
+| 게시글 | 성공 / 실패 / 건너뜀 건수 + 미니 진행 막대 |
+| 댓글 | 동일 형식 |
+| 오류 수 | 빨간 뱃지로 표시 |
+| 경과 | 총 소요 시간 |
+| 실행자 | 관리자 닉네임 (스케줄이면 `스케줄러`) |
+
+> 상단 요약 카드: 오늘 게시글 성공/실패, 오늘 댓글 성공/실패, 7일 평균 오류율
+
+#### 실행 중지 버튼
+
+실행 중(`🟢`) 또는 완료(`✅`) 상태의 행에 **🟥 중지** 버튼이 표시됩니다.
+
+- 클릭 시 `is_stopped = true` 플래그가 DB에 기록됩니다.
+- **이미 시작된 Job**은 현재 처리를 마치고 종료합니다.
+- **아직 시작 안 한 Job**은 실행 직후 플래그를 읽고 자동으로 건너뜁니다 (skip 카운트 증가).
+- 상태가 `중지 중(stopping)` → 마지막 Job 완료 후 `중지됨(stopped)`으로 변경됩니다.
+
+> ⚠️ 중지 버튼은 "앞으로 실행될 Job만" 막는 **소프트 스톱**입니다.  
+> 현재 Gemini API 호출 중인 Job을 즉시 끊지는 않습니다.
+
+---
+
+### 10-5. 로그 상세 화면 (Logs/Show)
+
+**목록에서 📋 상세** 버튼 클릭 → `/admin/auto-content/logs/{id}`
+
+#### 상단 요약
+
+- 실행 ID, 날짜, 상태 뱃지 (실행 중이면 점멸 애니메이션)
+- 진행 카드: 게시글(초록 막대) / 댓글(파란 막대) / 오류 수 / 소요 시간
+- 진영별 분석: 보수·중도·진보 각각의 게시글·댓글 성공/실패 수
+
+> 상태가 `실행 중` / `중지 중` / `완료(중지 없음)`이면 **15초마다 자동 새로고침**
+
+#### 전체 로그 탭
+
+Job 1건 = 행 1개. 아래 필터로 좁혀볼 수 있습니다.
+
+| 필터 | 옵션 |
+|---|---|
+| 유형 | 전체 / 게시글 / 댓글 |
+| 진영 | 전체 / 보수 / 중도 / 진보 |
+| 결과 | 전체 / 성공 / 실패 / 건너뜀 |
+
+행 컬럼: 시각 / 유형(📝/💬) / 진영 뱃지 / 닉네임 / 게시판 / 주제·제목 / 결과(✓·✗·⏭) / 소요(ms) / 오류 메시지 / 게시글 바로가기 링크
+
+50건씩 페이지네이션, AJAX 로드.
+
+#### 오류 로그 탭 (터미널 뷰어)
+
+```
+● ○ ○   오류 로그 (macOS 스타일 헤더)
+─────────────────────────────────────────────────────
+오후 04:27:17  ERROR  [GenerateAIPostJob]
+  진영: 보수  닉네임: 태극전사  게시판: 보수 아지트  소요: 0.5s
+  주제: 경제성장과 기업 친화 정책
+  → Gemini 응답 없음: Rate-limit (429): 3회 재시도 후 실패
+─────────────────────────────────────────────────────
+```
+
+- 어두운 배경 + 등폭 폰트 (mono)
+- 실패한 Job만 표시, 최대 200건
+- `→` 뒤 메시지가 실제 오류 원인 (업데이트된 GeminiService가 이유를 자세히 기록)
+
+#### 오류 원인 해석 가이드
+
+| 오류 메시지 | 원인 | 조치 |
+|---|---|---|
+| `Rate-limit (429): 3회 재시도 후 실패` | 분당 15 RPM 초과 | 게시글 간격 넓히기 / 생성 수 줄이기 |
+| `안전 필터 차단: HARM_CATEGORY_HATE_SPEECH` | 정치 관련 주제가 Gemini 안전 정책에 저촉 | 해당 주제 문구 변경 |
+| `HTTP 401: API key not valid` | Gemini API 키 오류 | `.env` GEMINI_API_KEY 재확인 |
+| `HTTP 403: ...grounding...` | 무료 티어에서 Google Search 그라운딩 불가 | 관리자 패널 → 그라운딩 비활성화 |
+| `텍스트 없음 (finishReason=MAX_TOKENS)` | 응답이 잘렸음 | 주제가 너무 복잡하면 단순화 |
+| `프롬프트 차단: PROHIBITED_CONTENT` | 프롬프트 자체가 차단 | 주제 문구 수정 |
+| `모든 Gemini 모델에서 응답 실패` | 3개 모델 전부 장애 | [Gemini 상태 페이지](https://status.cloud.google.com/) 확인 |
+
+---
+
+### 10-6. 로그 정리
+
+오래된 실행 이력을 일괄 삭제합니다.
+
+```
+관리자 패널 → AI 생성 로그 → 우측 상단 "로그 정리" 버튼
+```
+
+- 드롭다운에서 보존 기간 선택 (7일 / 14일 / 30일 / 90일)
+- 해당 기간 이전의 `auto_content_runs` + 하위 `auto_content_run_entries` 전체 삭제
+
+```bash
+# 또는 직접 삭제 (30일 이전)
+docker compose exec app php artisan tinker --execute="
+App\Models\AutoContentRun::where('created_at','<',now()->subDays(30))->delete();
+"
+```
+
+---
+
+### 10-7. 마이그레이션 — 최초 설치 시 필수
+
+```bash
+# AI 로그 테이블 3개 마이그레이션
+docker compose exec app php artisan migrate
+
+# 생성된 테이블 확인
+docker compose exec app php artisan tinker --execute="
+echo implode(', ', array_column(DB::select('SELECT tablename FROM pg_tables WHERE tablename LIKE \'auto_%\''), 'tablename'));
+"
+# 출력: auto_content_configs, auto_content_runs, auto_content_run_entries
+```
+
+---
+
+*최종 수정: 2026-07-07 (AI 자동 콘텐츠 생성 시스템 섹션 추가 — 로그 뷰어·오류 터미널·중지 기능·Gemini 모델 업그레이드 문서화)*

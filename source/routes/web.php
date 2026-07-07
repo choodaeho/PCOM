@@ -15,9 +15,11 @@ use App\Http\Controllers\PostController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\StatsController;
 use App\Http\Controllers\ToolsController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\VoteController;
 use App\Http\Controllers\PollController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\Admin\Auth\AdminLoginController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboard;
 use App\Http\Controllers\Admin\UserController as AdminUser;
@@ -28,6 +30,7 @@ use App\Http\Controllers\Admin\PollController as AdminPoll;
 use App\Http\Controllers\Admin\ScoreWeightController as AdminScoreWeight;
 use App\Http\Controllers\Admin\LegalDocumentController as AdminLegal;
 use App\Http\Controllers\Admin\DeletionRequestAdminController as AdminDeletionRequest;
+use App\Http\Controllers\Admin\AutoContentController as AdminAutoContent;
 use App\Http\Controllers\DeletionRequestController;
 use App\Http\Controllers\LegalController;
 use Illuminate\Support\Facades\Route;
@@ -36,7 +39,7 @@ use Illuminate\Support\Facades\Route;
 // 랜딩 페이지
 // ═══════════════════════════════════════════════════════════════════════════════
 
-Route::get('/', fn () => inertia('Home'))->name('home');
+Route::get('/', [\App\Http\Controllers\HomeController::class, 'index'])->name('home');
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 법적 문서 (이용약관 / 개인정보처리방침) — 비로그인 허용
@@ -205,11 +208,25 @@ Route::middleware(['auth', 'verified', 'user.active', 'political.test'])->group(
         Route::get('/edit', [ProfileController::class, 'edit'])->name('edit');
         Route::put('/', [ProfileController::class, 'update'])->name('update');
     });
+
+    // ─────────────────────────────────────────────
+    // 알림 API (JSON 반환, polling 방식)
+    // ─────────────────────────────────────────────
+    Route::prefix('/api/notifications')->name('notifications.')->group(function () {
+        Route::get('/',             [NotificationController::class, 'index'])       ->name('index');
+        Route::get('/unread-count', [NotificationController::class, 'unreadCount']) ->name('unread-count');
+        Route::post('/read-all',    [NotificationController::class, 'markAllRead']) ->name('read-all');
+        Route::post('/{notification}/read',   [NotificationController::class, 'markRead'])  ->name('read');
+        Route::delete('/{notification}',      [NotificationController::class, 'destroy'])   ->name('destroy');
+    });
+
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 랭킹 (비로그인 허용)
+// 사용자 공개 프로필 / 랭킹 — 비로그인 허용
 // ═══════════════════════════════════════════════════════════════════════════════
+
+Route::get('/users/{user}', [UserProfileController::class, 'show'])->name('users.profile');
 
 Route::prefix('/stats')->name('stats.')->group(function () {
     Route::get('/ranking', [StatsController::class, 'ranking'])->name('ranking');
@@ -305,17 +322,31 @@ Route::middleware('admin.auth')
             Route::get('/', [AdminLegal::class, 'index'])->name('index');
             Route::get('/create', [AdminLegal::class, 'create'])->name('create');
             Route::post('/', [AdminLegal::class, 'store'])->name('store');
-            Route::get('/{legal}/edit', [AdminLegal::class, 'edit'])->name('edit');
-            Route::put('/{legal}', [AdminLegal::class, 'update'])->name('update');
-            Route::post('/{legal}/set-current', [AdminLegal::class, 'setCurrent'])->name('set-current');
-            Route::delete('/{legal}', [AdminLegal::class, 'destroy'])->name('destroy');
+            Route::get('/{legalDocument}/edit', [AdminLegal::class, 'edit'])->name('edit');
+            Route::put('/{legalDocument}', [AdminLegal::class, 'update'])->name('update');
+            Route::delete('/{legalDocument}', [AdminLegal::class, 'destroy'])->name('destroy');
         });
 
         // 삭제 요청 관리
         Route::prefix('/deletion-requests')->name('deletion-requests.')->group(function () {
             Route::get('/', [AdminDeletionRequest::class, 'index'])->name('index');
             Route::get('/{deletionRequest}', [AdminDeletionRequest::class, 'show'])->name('show');
-            Route::post('/{deletionRequest}/confirm', [AdminDeletionRequest::class, 'confirm'])->name('confirm');
-            Route::post('/{deletionRequest}/restore', [AdminDeletionRequest::class, 'restore'])->name('restore');
+            Route::post('/{deletionRequest}/approve', [AdminDeletionRequest::class, 'approve'])->name('approve');
+            Route::post('/{deletionRequest}/reject', [AdminDeletionRequest::class, 'reject'])->name('reject');
+        });
+
+        // AI 자동 콘텐츠 생성 관리
+        Route::prefix('/auto-content')->name('auto-content.')->group(function () {
+            Route::get('/', [AdminAutoContent::class, 'index'])->name('index');
+            Route::put('/', [AdminAutoContent::class, 'update'])->name('update');
+            Route::post('/run-now', [AdminAutoContent::class, 'runNow'])->name('run-now');
+            Route::get('/stats', [AdminAutoContent::class, 'stats'])->name('stats');
+
+            // 실행 로그
+            Route::get('/logs', [AdminAutoContent::class, 'logs'])->name('logs');
+            Route::delete('/logs/cleanup', [AdminAutoContent::class, 'logCleanup'])->name('logs.cleanup');
+            Route::get('/logs/{run}', [AdminAutoContent::class, 'logShowPage'])->name('logs.show');
+            Route::post('/logs/{run}/stop', [AdminAutoContent::class, 'stopRun'])->name('logs.stop');
+            Route::get('/logs/{run}/entries', [AdminAutoContent::class, 'logEntries'])->name('logs.entries');
         });
     });

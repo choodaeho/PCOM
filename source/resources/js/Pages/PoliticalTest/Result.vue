@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Link, usePage } from '@inertiajs/vue3'
+import { Head, Link, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
 defineOptions({ layout: AppLayout })
@@ -26,6 +26,10 @@ const props = defineProps<{
    */
   source?: string | null
 }>()
+
+// ── SEO ──────────────────────────────────────────────────────────
+const seoTitle = computed(() => `나는 ${props.result.faction_emoji} ${props.result.faction_label} 성향`)
+const seoDesc  = computed(() => props.result.description ?? `정치 성향 테스트 결과: ${props.result.faction_label}. 폴릿에서 나의 성향을 확인해보세요.`)
 
 const page = usePage()
 const isLoggedIn = computed(() => !!(page.props as any).auth?.user)
@@ -82,6 +86,11 @@ const applyUrl = computed(
 </script>
 
 <template>
+<Head :title="seoTitle">
+  <meta name="description" :content="seoDesc" />
+  <meta property="og:title" :content="`${seoTitle} — 폴릿`" />
+  <meta property="og:description" :content="seoDesc" />
+</Head>
   <div class="min-h-[calc(100vh-10rem)] flex items-center justify-center px-4 py-16">
     <div class="w-full max-w-2xl">
 

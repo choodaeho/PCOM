@@ -21,15 +21,19 @@ class PostController extends Controller
     public function create(Request $request, Board $board): Response
     {
         return Inertia::render('Posts/Create', [
-            'board' => $board->only(['id', 'name', 'slug', 'board_type']),
+            'board' => array_merge(
+                $board->only(['id', 'name', 'slug', 'board_type']),
+                ['categories' => $board->categories ?? []]
+            ),
         ]);
     }
 
     public function store(Request $request, Board $board): mixed
     {
         $validated = $request->validate([
-            'title'   => ['required', 'string', 'min:2', 'max:300'],
-            'content' => ['required', 'string'],
+            'title'    => ['required', 'string', 'min:2', 'max:300'],
+            'content'  => ['required', 'string'],
+            'category' => ['nullable', 'string', 'max:50'],
         ]);
 
         // HTML 태그를 제거한 실제 텍스트 길이 검증
@@ -43,14 +47,17 @@ class PostController extends Controller
             'faction'      => $request->user()->political_type->value,
             'title'        => $validated['title'],
             'content'      => $validated['content'],
+            'category'     => $validated['category'] ?? null,
             'is_anonymous' => false,
             'status'       => 'published',
         ]);
 
         $this->levelService->syncUser($request->user());
 
+        // back_to_board: 상세보기의 "목록으로"가 글작성 페이지 대신 게시판 목록으로 이동하도록
         return redirect()->route('posts.show', [$board->slug, $post])
-            ->with('success', '게시글이 작성되었습니다.');
+            ->with('success', '게시글이 작성되었습니다.')
+            ->with('back_to_board', true);
     }
 
     /**
@@ -72,6 +79,9 @@ class PostController extends Controller
             'user:id,nickname,political_type,level',
             'comments.user:id,nickname,political_type,level',
             'comments.replies.user:id,nickname,political_type,level',
+            // reply_to_id → @닉네임 표시용 (답글의 답글)
+            'comments.replies.replyTo:id,user_id',
+            'comments.replies.replyTo.user:id,nickname',
         ]);
 
         // level_emoji 는 DB 컬럼이 아닌 LEVELS 상수 조회값 — BoardController 방식으로 주입
@@ -87,6 +97,7 @@ class PostController extends Controller
             $appendLevelEmoji($comment->user);
             foreach ($comment->replies as $reply) {
                 $appendLevelEmoji($reply->user);
+                // replyTo.user 는 닉네임만 필요, level_emoji 불필요
             }
         }
 
@@ -113,6 +124,48 @@ class PostController extends Controller
             }
         }
 
+        // ── 하단 글 목록 (펨코 스타일: 현재 글 전후 각 5개) ──────────
+        $toRow = fn (mixed $p, bool $current = false): array => [
+            'id'            => $p->id,
+            'title'         => $p->title,
+            'comment_count' => (int) ($p->comment_count ?? 0),
+            'view_count'    => (int) ($p->view_count    ?? 0),
+            'is_hot'        => (bool) $p->is_hot,
+            'is_notice'     => (bool) $p->is_notice,
+            'created_at'    => $p->created_at?->toIso8601String(),
+            'author'        => $p->user?->nickname ?? '알 수 없음',
+            'is_current'    => $current,
+        ];
+
+        // 현재 글보다 ID 큰 글 5개 (최신 → 오래된 순 정렬)
+        $newerPosts = $board->posts()
+            ->with('user:id,nickname')
+            ->where('status', 'published')
+            ->where('id', '>', $post->id)
+            ->orderBy('id', 'asc')
+            ->take(5)
+            ->get()
+            ->sortByDesc('id')
+            ->values();
+
+        // 현재 글보다 ID 작은 글 5개 (최신 → 오래된 순)
+        $olderPosts = $board->posts()
+            ->with('user:id,nickname')
+            ->where('status', 'published')
+            ->where('id', '<', $post->id)
+            ->orderByDesc('id')
+            ->take(5)
+            ->get();
+
+        // Eloquent\Collection::map()은 여전히 Eloquent Collection을 반환해
+        // merge() 시 getKey()를 배열에 호출하는 버그 발생.
+        // toBase()로 일반 Illuminate\Support\Collection으로 변환 후 조합.
+        $boardPosts = $newerPosts->toBase()
+            ->map(fn ($p) => $toRow($p))
+            ->push($toRow($post, true))
+            ->merge($olderPosts->toBase()->map(fn ($p) => $toRow($p)))
+            ->values();
+
         return Inertia::render('Posts/Show', [
             'board'          => array_merge(
                 $board->only(['id', 'name', 'slug']),
@@ -121,6 +174,9 @@ class PostController extends Controller
             'post'           => $post,
             'myVote'         => $myVote,
             'myCommentVotes' => $myCommentVotes,  // { "commentId": "up"|"down" }
+            'boardPosts'     => $boardPosts,
+            // store/update 리다이렉트 후 1회만 true → "목록으로"가 게시판 루트로 이동
+            'backToBoard'    => (bool) session('back_to_board', false),
         ]);
     }
 
@@ -129,8 +185,11 @@ class PostController extends Controller
         abort_if($post->user_id !== $request->user()->id, 403);
 
         return Inertia::render('Posts/Edit', [
-            'board' => $board->only(['id', 'name', 'slug']),
-            'post'  => $post->only(['id', 'title', 'content']),
+            'board' => array_merge(
+                $board->only(['id', 'name', 'slug']),
+                ['categories' => $board->categories ?? []]
+            ),
+            'post'  => $post->only(['id', 'title', 'content', 'category']),
         ]);
     }
 
@@ -139,8 +198,9 @@ class PostController extends Controller
         abort_if($post->user_id !== $request->user()->id, 403);
 
         $validated = $request->validate([
-            'title'   => ['required', 'string', 'min:2', 'max:300'],
-            'content' => ['required', 'string'],
+            'title'    => ['required', 'string', 'min:2', 'max:300'],
+            'content'  => ['required', 'string'],
+            'category' => ['nullable', 'string', 'max:50'],
         ]);
 
         $plainText = trim(strip_tags($validated['content']));
@@ -150,8 +210,10 @@ class PostController extends Controller
 
         $post->update($validated);
 
+        // back_to_board: 수정 후에도 "목록으로"가 편집 페이지 대신 게시판 목록으로 이동하도록
         return redirect()->route('posts.show', [$board->slug, $post])
-            ->with('success', '게시글이 수정되었습니다.');
+            ->with('success', '게시글이 수정되었습니다.')
+            ->with('back_to_board', true);
     }
 
     public function destroy(Request $request, Board $board, Post $post): mixed

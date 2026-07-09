@@ -52,12 +52,18 @@ class AppServiceProvider extends ServiceProvider
         // Gemini API 큐 Job Rate Limiter
         // -----------------------------------------------------------------
 
-        // 무료 티어: 15 RPM → Post(grounding포함 최대 2콜) + Comment 합산
-        // 안전 마진 확보: 분당 최대 10 Job 처리
-        // - 10 Job × 평균 1.2 API콜 = ~12 RPM (한도 내)
-        // - 초과 시 job을 큐에 release (tries 차감 없음), 다음 슬롯에서 재처리
+        // 현재 모델: gemini-2.5-flash (무료 RPM=5 / RPD=20)
+        //            gemini-2.5-flash-lite (무료 별도 RPD 한도, fallback)
+        // ⚠️ gemini-2.0-flash / 2.0-flash-lite → 2026년 6월 1일 지원 종료
+        //
+        // 안전 마진 계산:
+        //   4 Job/min × 평균 1.1 API콜/Job = ~4.4 RPM (RPM=5 한도의 88%)
+        //   → Post + Comment 합산, 재시도 포함해도 RPM=5 이내 유지
+        //   → RPD=20 제약: posts_per_faction × 3 + 댓글 ≤ 18 이내 운영 권장
+        //
+        // 한도 초과 시 job을 큐에 release (tries 차감 없음), 다음 슬롯에서 재처리
         RateLimiter::for('gemini', function (object $job) {
-            return Limit::perMinute(10);
+            return Limit::perMinute(4);
         });
     }
 }

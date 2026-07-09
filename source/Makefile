@@ -137,6 +137,7 @@ sync: ## Windows(D:/2026/pcom/source) → WSL2 소스 동기화 (변경 파일�
 	@echo "🔄 동기화 중: $(WIN_SRC) → $(CURDIR)"
 	@rsync -rltu \
 		--no-perms --no-owner --no-group \
+		--omit-dir-times \
 		--exclude='.env' \
 		--exclude='vendor/' \
 		--exclude='node_modules/' \

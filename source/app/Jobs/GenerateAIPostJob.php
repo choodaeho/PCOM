@@ -10,6 +10,7 @@ use App\Models\Board;
 use App\Models\Post;
 use App\Models\User;
 use App\Services\GeminiService;
+use App\Services\KoreanNewsService;
 use App\Services\NewsImageService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -23,12 +24,13 @@ use Illuminate\Support\Facades\Log;
  * AI 게시글 1건 생성 Job
  *
  * 생성 흐름:
- *   1. Gemini (+ Google Search 그라운딩) → 최신 뉴스 기반 제목·본문·소스 생성
- *   2. NewsImageService → 관련 이미지 URL 조회 (Pixabay → picsum fallback)
- *   3. HTML 조립: 본문 + 이미지 + 뉴스 출처 링크 + YouTube iframe 임베드
- *   4. Post 레코드 생성
- *   5. 댓글 GenerateAICommentJob 예약
- *   6. AutoContentRunEntry 로그 기록
+ *   1. (use_grounding=true 시) KoreanNewsService → RSS 뉴스 컨텍스트 수집
+ *   2. Gemini → 뉴스 기반 제목·본문·참고 출처(refs) 생성 (Google Search 그라운딩 미사용)
+ *   3. NewsImageService → 관련 이미지 URL 조회 (Pixabay → picsum fallback)
+ *   4. HTML 조립: 본문 + 이미지 + 참고 뉴스 출처 링크 + YouTube 검색 링크
+ *   5. Post 레코드 생성
+ *   6. 댓글 GenerateAICommentJob 예약
+ *   7. AutoContentRunEntry 로그 기록
  */
 class GenerateAIPostJob implements ShouldQueue
 {
@@ -101,15 +103,35 @@ class GenerateAIPostJob implements ShouldQueue
             return;
         }
 
-        // ── 1. Gemini로 게시글 생성 ──────────────────────────
+        // ── 1. RSS 뉴스 컨텍스트 수집 (use_grounding 설정 시) ─────
+        // Google Search 그라운딩 대신 RSS로 수집한 실제 기사를 Gemini 프롬프트에 주입.
+        // 수집 실패(네트워크 오류 등)는 조용히 처리 — 빈 배열로 Gemini 호출 계속 진행.
+        $newsArticles = [];
+        if ($this->useGrounding) {
+            try {
+                $newsService  = new KoreanNewsService();
+                $newsArticles = $newsService->fetchForPrompt($this->faction, $this->topic);
+                Log::info('[GenerateAIPostJob] 뉴스 컨텍스트 수집', [
+                    'faction'  => $this->faction,
+                    'articles' => count($newsArticles),
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('[GenerateAIPostJob] 뉴스 수집 실패, 뉴스 없이 진행', [
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // ── 2. Gemini로 게시글 생성 ──────────────────────────
         $gemini    = new GeminiService($this->geminiApiKey);
         $boardType = str_contains($board->slug, 'azit') ? 'azit' : 'battle';
 
         $result = $gemini->generatePost(
-            $this->faction,
-            $this->topic,
-            $boardType,
-            $this->useGrounding,
+            faction:      $this->faction,
+            topic:        $this->topic,
+            boardType:    $boardType,
+            useGrounding: false,           // 항상 false — Google Search 그라운딩 미사용
+            newsContext:  $newsArticles,   // RSS 뉴스 컨텍스트
         );
 
         if ($result === null) {
@@ -130,7 +152,7 @@ class GenerateAIPostJob implements ShouldQueue
             return;
         }
 
-        // ── 2. 이미지 URL 조회 ────────────────────────────────
+        // ── 3. 이미지 URL 조회 ────────────────────────────────
         // 40% 확률로만 이미지 포함 — 모든 글에 이미지를 넣으면 주제와 무관한
         // Pixabay 결과가 노출될 수 있으므로 선별적으로 첨부.
         $imageUrl     = null;
@@ -143,15 +165,14 @@ class GenerateAIPostJob implements ShouldQueue
             // 검색 결과가 없으면 이미지 제외 (null 그대로 유지)
         }
 
-        // ── 3. HTML 조립 ──────────────────────────────────────
+        // ── 4. HTML 조립 ──────────────────────────────────────
         $contentHtml = $this->buildHtml(
-            body:       $result['content'],
-            imageUrl:   $imageUrl,
-            sources:    $result['sources'] ?? [],
-            youtubeUrl: $result['youtube_url'] ?? '',
+            body:     $result['content'],
+            imageUrl: $imageUrl,
+            sources:  $result['sources'] ?? [],
         );
 
-        // ── 4. Post 생성 ──────────────────────────────────────
+        // ── 5. Post 생성 ──────────────────────────────────────
         /** @var Post $post */
         $post = Post::create([
             'user_id'  => $this->userId,
@@ -172,7 +193,7 @@ class GenerateAIPostJob implements ShouldQueue
             'run_id'  => $this->runId,
         ]);
 
-        // ── 5. 실행 이력 로그 ────────────────────────────────
+        // ── 6. 실행 이력 로그 ────────────────────────────────
         $this->writeEntry(
             board: $board,
             user: $user,
@@ -188,7 +209,7 @@ class GenerateAIPostJob implements ShouldQueue
             AutoContentRun::find($this->runId)?->recordPostSuccess();
         }
 
-        // ── 6. 댓글 Job 예약 ──────────────────────────────────
+        // ── 7. 댓글 Job 예약 ──────────────────────────────────
         foreach (array_slice($this->commentUserIds, 0, $this->commentCount) as $idx => $commentUserId) {
             $delay = random_int($this->commentDelayMin, $this->commentDelayMax)
                    + ($idx * random_int(2, 5));
@@ -279,14 +300,13 @@ class GenerateAIPostJob implements ShouldQueue
      *   <img ...> (옵션)
      *   <p>본문 계속...</p>
      *   <hr>
-     *   뉴스 출처 링크 (옵션)
-     *   YouTube iframe 임베드 (옵션) — Quill ql-video 형식
+     *   참고 뉴스 출처 링크 (옵션, RSS에서 Gemini가 실제 참고한 기사만)
+     *   YouTube 검색 링크 (옵션 — iframe 임베드 금지, Gemini 할루시네이션 방지)
      */
     private function buildHtml(
         string  $body,
         ?string $imageUrl,
         array   $sources,
-        string  $youtubeUrl,
     ): string {
         $html = '';
 
@@ -314,8 +334,8 @@ class GenerateAIPostJob implements ShouldQueue
             $html .= $this->buildImageTag($imageUrl) . "\n";
         }
 
-        // ── 뉴스 출처 + YouTube 푸터 ──────────────────────────
-        $footer = $this->buildFooter($sources, $youtubeUrl);
+        // ── 뉴스 출처 + YouTube 검색 링크 푸터 ───────────────
+        $footer = $this->buildFooter($sources);
         if ($footer !== '') {
             $html .= "\n<hr style=\"border:none;border-top:1px solid #e2e8f0;margin:20px 0\">\n";
             $html .= $footer;
@@ -336,21 +356,34 @@ class GenerateAIPostJob implements ShouldQueue
         );
     }
 
-    private function buildFooter(array $sources, string $youtubeUrl): string
+    /**
+     * 뉴스 출처 링크 + YouTube 검색 링크 푸터 생성
+     *
+     * ⚠️ YouTube iframe 임베드 완전 제거
+     *   - 이유: Gemini가 존재하지 않는 YouTube video ID를 할루시네이션으로 생성
+     *     → 실제 영상이 없어 "동영상을 재생할 수 없음" 에러 100% 발생
+     *   - 대체: YouTube 검색 링크 (topic 기반) → 재생 에러 없이 관련 영상 탐색 가능
+     *
+     * 뉴스 출처:
+     *   - Google Search 그라운딩 청크 대신 RSS에서 수집하고 Gemini가 refs로 선택한 기사만 표시
+     *   - 최대 3개 (불필요한 출처 나열 방지)
+     */
+    private function buildFooter(array $sources): string
     {
         $html = '';
 
-        // 뉴스 출처 링크 (그라운딩에서 가져온 실제 URL)
+        // ── 참고 뉴스 출처 링크 ───────────────────────────────
+        // Gemini의 refs 응답으로 필터링된 실제 참고 기사만 표시 (최대 3개)
         $validSources = array_filter(
             $sources,
-            fn($s) => ! empty($s['url']) && filter_var($s['url'], FILTER_VALIDATE_URL),
+            fn($s) => !empty($s['url']) && filter_var($s['url'], FILTER_VALIDATE_URL),
         );
 
-        if ($this->includeNewsLinks && ! empty($validSources)) {
+        if ($this->includeNewsLinks && !empty($validSources)) {
             $html .= '<div style="font-size:13px;color:#64748b;margin-top:12px">';
-            $html .= '<strong>📰 관련 뉴스</strong>';
+            $html .= '<strong>📰 참고 뉴스</strong>';
             $html .= '<ul style="margin:6px 0 0;padding-left:18px;line-height:1.8">';
-            foreach (array_slice(array_values($validSources), 0, 4) as $src) {
+            foreach (array_slice(array_values($validSources), 0, 3) as $src) {
                 $title = e(mb_substr($src['title'], 0, 80));
                 $url   = e($src['url']);
                 $html .= "<li><a href=\"{$url}\" target=\"_blank\" rel=\"noopener noreferrer\" "
@@ -359,38 +392,19 @@ class GenerateAIPostJob implements ShouldQueue
             $html .= '</ul></div>';
         }
 
-        // YouTube 임베드 — Quill ql-video iframe 형식
-        if ($this->includeYoutube && ! empty(trim($youtubeUrl))) {
-            $embedUrl = $this->youtubeEmbedUrl($youtubeUrl);
-            if ($embedUrl !== null) {
-                // Quill 에디터 동영상 삽입 형식 (ql-video)
-                $html .= '<iframe class="ql-video" frameborder="0" allowfullscreen="true" src="'
-                       . e($embedUrl) . '"></iframe>' . "\n";
-            }
+        // ── YouTube 검색 링크 ────────────────────────────────
+        // iframe 임베드 대신 YouTube 검색 링크 제공
+        // → Gemini 할루시네이션으로 인한 "재생 불가" 에러 완전 방지
+        if ($this->includeYoutube) {
+            $query       = urlencode($this->topic . ' 뉴스');
+            $searchUrl   = 'https://www.youtube.com/results?search_query=' . $query;
+            $html .= '<div style="font-size:13px;color:#64748b;margin-top:8px">';
+            $html .= '<a href="' . e($searchUrl) . '" target="_blank" rel="noopener noreferrer" '
+                   . 'style="color:#ef4444;text-decoration:none;font-weight:500">'
+                   . '▶ 관련 유튜브 영상 검색</a>';
+            $html .= '</div>';
         }
 
         return $html;
-    }
-
-    /**
-     * YouTube URL에서 embed URL 추출
-     *
-     * 지원 형식:
-     *   https://www.youtube.com/watch?v=VIDEO_ID
-     *   https://youtu.be/VIDEO_ID
-     *   https://www.youtube.com/embed/VIDEO_ID
-     *
-     * @return string|null  embed URL 또는 null (유효하지 않은 URL)
-     */
-    private function youtubeEmbedUrl(string $url): ?string
-    {
-        if (preg_match(
-            '/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/',
-            $url,
-            $m,
-        )) {
-            return 'https://www.youtube.com/embed/' . $m[1];
-        }
-        return null;
     }
 }

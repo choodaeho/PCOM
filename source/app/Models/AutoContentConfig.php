@@ -62,7 +62,7 @@ class AutoContentConfig extends Model
             'gemini_api_key'        => '',
             'pixabay_api_key'       => '',
             'is_enabled'            => false,
-            'posts_per_faction'     => 100,
+            'posts_per_faction'     => 2,    // 기본 2개 (무료 RPD=20 제약: 2×3진영+댓글 ≈ 18콜/일)
             'comments_per_post_min' => 1,
             'comments_per_post_max' => 3,
             'start_hour'            => 6,

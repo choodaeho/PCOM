@@ -10,8 +10,27 @@ use Illuminate\Support\Facades\Log;
 /**
  * Google Gemini API 래퍼 (무료 티어 최적화)
  *
- * 무료 티어: 15 RPM / 1M tokens/day
- * 모델 우선순위: gemini-2.0-flash-lite → gemini-2.0-flash → gemini-1.5-flash
+ * ─ 현재 유효 무료 티어 모델 (2026년 6월 이후 기준) ───────────────────────
+ *  gemini-2.5-flash      : RPM=5  / RPD=20   ← 기본 모델
+ *  gemini-2.5-flash-lite : 별도 RPD 한도      ← fallback 경량 모델
+ * ─────────────────────────────────────────────────────────────────────────
+ * ⚠️ 지원 종료 모델 (2026년 6월 1일부로 사용 불가):
+ *   - gemini-2.0-flash      → 완전 종료
+ *   - gemini-2.0-flash-lite → 완전 종료
+ *
+ * 뉴스 컨텍스트 전략 (Google Search 그라운딩 대체):
+ *   - KoreanNewsService가 RSS로 수집한 실제 뉴스를 프롬프트에 직접 주입
+ *   - Gemini는 제공된 기사 중 참고한 번호(refs)를 JSON에 포함
+ *   - 그라운딩 API 호출 없음 → 500 RPD 한도 미소진, HTTP 400 위험 없음
+ *
+ * ⚠️ 중요 설정 (절대 삭제 금지):
+ *   - thinkingBudget=0  : thinking 토큰이 maxOutputTokens 예산 선점 방지
+ *   - responseMimeType  : 사용 금지 (그라운딩 400 에러 + 조기 종료 유발)
+ *   - useGrounding=false: 항상 false (Google Search 그라운딩 미사용)
+ *
+ * 무료 티어 RPD=20 제약:
+ *   - posts_per_faction × 3진영 + 댓글 수 ≤ 20 이내로 설정 권장
+ *
  * 429 Rate-limit 시 지수 백오프 재시도 (최대 3회)
  * 안전 필터 차단(SAFETY) / 저작권(RECITATION) 시 자동 재시도
  */
@@ -21,22 +40,17 @@ class GeminiService
     private const TIMEOUT  = 60;
 
     /**
-     * 모델 우선순위 목록
-     * 앞에서부터 시도 → 404(모델 없음) 시 다음 모델로 자동 전환
+     * 모델 우선순위 목록 (앞에서부터 시도 → 404/429 시 다음 모델로)
      *
-     * ⚠️ gemini-1.5-flash 계열은 v1beta에서 deprecated → 사용 금지
-     * 실제 사용 가능 모델은 아래 명령으로 조회:
-     *   docker compose exec app php artisan tinker --execute="
-     *     \$r = Http::get('https://generativelanguage.googleapis.com/v1beta/models?key='.config('services.gemini.api_key'));
-     *     foreach(\$r->json()['models'] as \$m) {
-     *       if(in_array('generateContent',\$m['supportedGenerationMethods']??[])) echo \$m['name'].PHP_EOL;
-     *     }
-     *   "
+     * ⚠️ gemini-2.0-flash / gemini-2.0-flash-lite → 2026년 6월 1일 지원 종료 (사용 금지)
+     * ⚠️ gemini-1.5-flash 계열은 v1beta deprecated → 사용 금지
+     *
+     * 무료 tier RPD 한도: gemini-2.5-flash=20, gemini-2.5-flash-lite=별도
+     * → 2.5-flash RPD 소진(429) 시 자동으로 2.5-flash-lite 로 전환됨
      */
     private const MODELS = [
-        'gemini-2.5-flash',        // 최신 무료 모델 (2025.03~)
-        'gemini-2.0-flash',        // 안정 무료 모델
-        'gemini-2.0-flash-lite',   // 경량 무료 모델
+        'gemini-2.5-flash',        // ✅ 현재 기본 모델 (무료: RPM=5 / RPD=20 / 그라운딩 500 RPD)
+        'gemini-2.5-flash-lite',   // ✅ fallback 경량 모델 (무료: 별도 RPD 한도)
     ];
 
     /** 마지막 오류 사유 (Job에서 읽어 로그에 기록) */
@@ -56,13 +70,24 @@ class GeminiService
     // ─────────────────────────────────────────────────────────
 
     /**
-     * @return array{title:string, content:string, image_query:string, youtube_url:string, sources:array}|null
+     * AI 게시글 생성
+     *
+     * @param  string $faction      진영 (conservative|moderate|progressive)
+     * @param  string $topic        주제 키워드
+     * @param  string $boardType    게시판 유형 (azit|battle)
+     * @param  bool   $useGrounding 미사용 (하위 호환성 유지, 항상 false 처리)
+     * @param  list<array{title:string, summary:string, url:string, source:string}> $newsContext
+     *         KoreanNewsService에서 수집한 RSS 뉴스 목록
+     *         Gemini 프롬프트에 직접 주입 → Google Search 그라운딩 대체
+     *
+     * @return array{title:string, content:string, image_query:string, sources:list<array{title:string,url:string}>}|null
      */
     public function generatePost(
         string $faction,
         string $topic,
         string $boardType    = 'azit',
-        bool   $useGrounding = true,
+        bool   $useGrounding = false,   // 항상 false — Google Search 그라운딩 미사용
+        array  $newsContext  = [],      // RSS 뉴스 목록 (KoreanNewsService 제공)
     ): ?array {
         if (empty($this->apiKey)) {
             $this->lastErrorReason = 'API 키 미설정';
@@ -80,36 +105,60 @@ class GeminiService
             : '아지트(같은 진영끼리의 커뮤니티)';
         $today = now()->format('Y년 m월 d일');
 
+        // ── 뉴스 컨텍스트 섹션 구성 ─────────────────────────────
+        // newsContext가 있으면 프롬프트에 실제 기사 목록 주입,
+        // Gemini가 참고한 기사 번호(refs)를 JSON에 반환하도록 지시.
+        if (!empty($newsContext)) {
+            $newsLines = "\n[오늘의 참고 뉴스]\n";
+            $newsLines .= "아래는 실제 보도된 최신 뉴스입니다. 관련 기사를 참고해서 게시글을 작성하세요:\n\n";
+            foreach ($newsContext as $idx => $article) {
+                $newsLines .= "{$idx}. [{$article['source']}] {$article['title']}\n";
+                $newsLines .= "   URL: {$article['url']}\n";
+                if (!empty($article['summary'])) {
+                    $newsLines .= '   내용: ' . mb_substr($article['summary'], 0, 150) . "\n";
+                }
+                $newsLines .= "\n";
+            }
+            $newsBasis = "위 뉴스를 바탕으로";
+            $refsNote  = "\n- refs: 실제로 참고한 뉴스 번호 배열 (0부터 시작, 예: [0,2] — 미참고 시 [])";
+            $refsJson  = ',"refs":[0]';
+        } else {
+            $newsLines = '';
+            $newsBasis = "최근 1주일 이내의 한국 뉴스·이슈를 반영해서";
+            $refsNote  = "\n- refs: 빈 배열 []";
+            $refsJson  = ',"refs":[]';
+        }
+
+        // ── 프롬프트 구성 ───────────────────────────────────────
+        // maxTokens: 4096 — thinkingBudget=0 으로 thinking 비활성화 이후
+        //   사고 토큰이 예산을 선점하지 않으므로 4096 토큰 전체가 텍스트 출력에 할당
+        //   한국어 800자 게시글 JSON ≈ 1000~1500 토큰 → 4096이면 충분히 안전
         $prompt = <<<PROMPT
 오늘은 {$today}입니다.
 당신은 한국의 {$factionLabel} 성향 커뮤니티 회원입니다.
-
-'{$topic}' 관련하여 최근 1주일 이내의 한국 뉴스·이슈를 반영해서
-{$boardDesc}에 올릴 게시글을 작성해주세요.
+{$newsLines}
+'{$topic}' 관련하여 {$newsBasis} {$boardDesc}에 올릴 게시글을 작성해주세요.
 
 [핵심 요구사항]
 - 제목: 40~100자, 커뮤니티 스타일로 흥미롭게
 - 본문: 400~800자, 자연스러운 구어체 한국어
-- {$factionLabel} 성향 관점에서 최신 뉴스를 분석·논평
-- 뉴스 내용을 그대로 복사하지 말고 본인 의견으로 재구성
-- 특정 개인·단체에 대한 명예훼손·허위사실 작성 금지
-- 혐오·차별 표현 금지
+- {$factionLabel} 성향 관점에서 뉴스를 분석·논평
+- 뉴스 내용 그대로 복사 금지 → 본인 의견으로 재구성
 - 마크다운 사용 금지, 단락(줄바꿈)만 허용
-- 이미지에 사용할 영어 키워드 1~3개 (Pixabay 검색용)
-- 주제와 관련된 실제 유튜브 동영상 URL 1개 (https://www.youtube.com/watch?v=... 형식)
-  → 실제로 존재하는 뉴스·시사 영상 URL을 제공하고, 없으면 null
+- 이미지에 사용할 영어 키워드 1~3개 (Pixabay 검색용){$refsNote}
+- 특정 개인·단체 명예훼손·허위사실 금지
+- 혐오·차별 표현 금지
 
 [중요] 반드시 아래 형식의 JSON 단 한 줄로만 응답하세요.
 - JSON 앞뒤에 어떤 텍스트도 추가하지 마세요 (설명·마크다운 불필요)
 - content 내부의 줄바꿈은 반드시 \\n 문자열로 표현하세요 (실제 개행 금지)
 - image_query는 Pixabay에서 검색할 영어 키워드 1~3개 (주제와 직접 관련된 것)
-- youtube_url이 없으면 null 문자열로 입력하세요
 
-{"title":"제목","content":"본문 단락1\\n\\n단락2","image_query":"english keyword","youtube_url":"https://www.youtube.com/watch?v=VIDEO_ID"}
+{"title":"제목","content":"본문 단락1\\n\\n단락2","image_query":"english keyword"{$refsJson}}
 PROMPT;
 
-        // 그라운딩 시도 → 실패 시 비그라운딩으로 자동 재시도
-        $result = $this->callWithRetry($prompt, 0.85, 1200, useGrounding: $useGrounding);
+        // ── 첫 번째 시도 (항상 그라운딩 없이) ─────────────────────
+        $result = $this->callWithRetry($prompt, 0.85, 4096, useGrounding: false);
 
         if ($result === null) {
             return null;
@@ -118,32 +167,68 @@ PROMPT;
         $raw    = $this->stripMarkdownFences($result['text']);
         $parsed = $this->extractJsonObject($raw);
 
+        // JSON 파싱 실패 → 한 번 더 재시도
         if ($parsed === null || empty($parsed['title']) || empty($parsed['content'])) {
-            // 최후 fallback: 첫 줄을 제목, 나머지를 본문으로
-            Log::warning('[GeminiService] JSON 파싱 실패, 텍스트 분리 fallback', [
-                'raw_snippet' => mb_substr($raw, 0, 200),
+            Log::info('[GeminiService] JSON 파싱 실패 → 재시도', [
+                'raw_length' => strlen($raw),
+                'raw_tail'   => mb_substr($raw, -100),
+                'raw_head'   => mb_substr($raw, 0, 200),
+            ]);
+            $retry = $this->callWithRetry($prompt, 0.80, 4096, useGrounding: false);
+            if ($retry !== null) {
+                $raw2    = $this->stripMarkdownFences($retry['text']);
+                $parsed2 = $this->extractJsonObject($raw2);
+                if ($parsed2 !== null && !empty($parsed2['title']) && !empty($parsed2['content'])) {
+                    $parsed = $parsed2;
+                    $raw    = $raw2;
+                }
+            }
+        }
+
+        if ($parsed === null || empty($parsed['title']) || empty($parsed['content'])) {
+            // 최후 fallback — Gemini 응답 자체 문제
+            Log::warning('[GeminiService] JSON 파싱 최종 실패, 텍스트 분리 fallback', [
+                'raw_length'  => strlen($raw),
+                'raw_tail'    => mb_substr($raw, -100),
+                'raw_snippet' => mb_substr($raw, 0, 300),
             ]);
             $lines  = explode("\n", trim($raw), 2);
             $parsed = [
                 'title'       => mb_substr(trim($lines[0] ?? $topic), 0, 250) ?: $topic,
                 'content'     => trim($lines[1] ?? '') ?: $topic,
                 'image_query' => 'korea politics',
-                'youtube_url' => null,
+                'refs'        => [],
             ];
         }
 
-        // youtube_url 정규화 — "null" 문자열, 빈값 처리
-        $youtubeUrl = trim($parsed['youtube_url'] ?? '');
-        if ($youtubeUrl === 'null' || $youtubeUrl === 'NULL') {
-            $youtubeUrl = '';
+        // ── refs → usedSources 변환 ─────────────────────────────
+        // Gemini가 반환한 기사 인덱스 배열을 newsContext와 매핑해 출처 목록 구성.
+        // 범위 초과 인덱스·중복은 제거.
+        $refs        = array_map('intval', (array)($parsed['refs'] ?? []));
+        $usedSources = [];
+        $seenUrls    = [];
+        foreach ($refs as $idx) {
+            if ($idx < 0 || $idx >= count($newsContext) || !isset($newsContext[$idx])) {
+                continue;
+            }
+            $article = $newsContext[$idx];
+            $urlKey  = md5($article['url']);
+            if (!isset($seenUrls[$urlKey])) {
+                $seenUrls[$urlKey] = true;
+                $usedSources[]     = [
+                    'title' => '[' . $article['source'] . '] ' . mb_substr($article['title'], 0, 70),
+                    'url'   => $article['url'],
+                ];
+            }
         }
 
         return [
             'title'       => mb_substr(trim($parsed['title']), 0, 250),
             'content'     => trim($parsed['content']),
             'image_query' => trim($parsed['image_query'] ?? 'korea politics'),
-            'youtube_url' => $youtubeUrl,
-            'sources'     => $result['sources'] ?? [],
+            'sources'     => $usedSources,
+            // youtube_url 제거 — Gemini 할루시네이션으로 존재하지 않는 영상 ID 생성
+            // → GenerateAIPostJob에서 YouTube 검색 링크로 대체
         ];
     }
 
@@ -294,6 +379,13 @@ PROMPT;
                 'temperature'     => $temperature,
                 'maxOutputTokens' => $maxTokens,
                 'topP'            => 0.95,
+                // ✅ 사고(thinking) 모드 명시적 비활성화
+                // 문제: gemini-2.5-flash는 기본적으로 thinking이 ON이며,
+                //       사고 토큰이 maxOutputTokens 예산을 선점함
+                //       → maxTokens=2048 중 ~1948을 사고에 소비 → 텍스트 출력 ~100 토큰만 남음
+                //       → finishReason=MAX_TOKENS @ 288 bytes → JSON 잘림 → 제목에 raw JSON 삽입
+                // 해결: thinkingBudget=0 으로 비활성화 → 2048 토큰 전체가 텍스트 출력에 할당
+                'thinkingConfig'  => ['thinkingBudget' => 0],
             ],
             'safetySettings' => [
                 ['category' => 'HARM_CATEGORY_HARASSMENT',        'threshold' => 'BLOCK_ONLY_HIGH'],
@@ -303,12 +395,14 @@ PROMPT;
             ],
         ];
 
+        // ⚠️ responseMimeType: "application/json" 사용 금지 — 두 가지 치명적 문제:
+        //   1. grounding(google_search) + JSON mode → Gemini HTTP 400 에러
+        //      ("Tool use with a response mime type: 'application/json' is unsupported")
+        //   2. 단독 사용 시에도 출력이 maxOutputTokens 훨씬 이전에 조기 종료(MAX_TOKENS)
+        // → JSON 형식은 프롬프트 지시로만 강제. extractJsonObject()가 파싱 보장.
+
         if ($useGrounding) {
             $body['tools'] = [['google_search' => new \stdClass()]];
-        } else {
-            // 그라운딩 미사용 시 JSON 응답 타입 강제 → 마크다운 펜스·접두 텍스트 제거
-            // (그라운딩 + responseMimeType 동시 사용 불가)
-            $body['generationConfig']['responseMimeType'] = 'application/json';
         }
 
         try {
@@ -376,6 +470,18 @@ PROMPT;
                 $this->lastErrorReason = '저작권 필터 차단 (RECITATION)';
                 Log::warning('[GeminiService] 저작권 필터 차단', ['model' => $model]);
                 return null;
+            }
+
+            if ($finishReason === 'MAX_TOKENS') {
+                // thinkingBudget=0 설정 후에도 MAX_TOKENS가 발생하면 maxOutputTokens 부족
+                // → JSON 잘림 가능성 있음 (generatePost에서 extractJsonObject 실패 시 fallback 처리)
+                $totalTokens = $data['usageMetadata']['totalTokenCount'] ?? null;
+                Log::warning('[GeminiService] MAX_TOKENS 조기 종료 — 응답 잘림 가능', [
+                    'model'       => $model,
+                    'totalTokens' => $totalTokens,
+                    'grounding'   => $useGrounding,
+                ]);
+                // 텍스트는 있을 수 있으므로 계속 진행 (generatePost에서 JSON 파싱 시도)
             }
 
             // 텍스트 추출

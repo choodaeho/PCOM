@@ -144,7 +144,7 @@ const hourOptions = Array.from({ length: 25 }, (_, i) => i)
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-bold text-white">🤖 AI 자동 콘텐츠 생성</h1>
-        <p class="text-slate-400 text-sm mt-1">Gemini + Google Search 그라운딩으로 최신 뉴스 기반 게시글을 자동 생성합니다</p>
+        <p class="text-slate-400 text-sm mt-1">Gemini + RSS 뉴스 컨텍스트로 최신 뉴스 기반 게시글을 자동 생성합니다</p>
       </div>
       <span :class="[
         'px-3 py-1 rounded-full text-xs font-bold',
@@ -176,7 +176,14 @@ const hourOptions = Array.from({ length: 25 }, (_, i) => i)
                 발급 →
               </a>
             </div>
-            <p class="text-[11px] text-slate-500 mt-1">무료 · 15 RPM / 1M tokens/day · Google Search 그라운딩 포함</p>
+            <p class="text-[11px] text-slate-500 mt-1">
+              현재 사용 모델: <strong class="text-slate-400">gemini-2.5-flash (RPM=5 / RPD=20)</strong>
+              <span class="mx-1 text-slate-600">·</span> fallback: gemini-2.5-flash-lite
+              <span class="mx-1 text-slate-600">·</span>
+              <span class="text-amber-500/80">⚠️ gemini-2.0-flash는 2026년 6월 1일 종료</span>
+              <span class="mx-1 text-slate-600">·</span>
+              <span class="text-sky-400/80">뉴스 컨텍스트: Google News + 언론사 RSS 무료 수집</span>
+            </p>
           </div>
 
           <!-- Pixabay -->
@@ -216,13 +223,13 @@ const hourOptions = Array.from({ length: 25 }, (_, i) => i)
           <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wider">게시글 포함 요소</h2>
 
           <div class="grid grid-cols-2 gap-3">
-            <!-- Google Search 그라운딩 -->
+            <!-- 뉴스 컨텍스트 사용 -->
             <label class="flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors"
               :class="form.use_grounding ? 'border-violet-600/60 bg-violet-600/10' : 'border-slate-700 bg-slate-800/50'">
               <input type="checkbox" v-model="form.use_grounding" class="mt-0.5 accent-violet-500" />
               <div>
-                <p class="text-sm font-semibold text-white">🔍 최신 뉴스 반영</p>
-                <p class="text-[11px] text-slate-400 mt-0.5">Google Search 그라운딩으로 1주일 내 실제 이슈 기반 작성</p>
+                <p class="text-sm font-semibold text-white">📡 뉴스 컨텍스트 사용</p>
+                <p class="text-[11px] text-slate-400 mt-0.5">RSS로 오늘의 실제 뉴스 수집 → Gemini 프롬프트에 주입</p>
               </div>
             </label>
 
@@ -242,7 +249,7 @@ const hourOptions = Array.from({ length: 25 }, (_, i) => i)
               <input type="checkbox" v-model="form.include_news_links" class="mt-0.5 accent-violet-500" />
               <div>
                 <p class="text-sm font-semibold text-white">📰 뉴스 출처 링크</p>
-                <p class="text-[11px] text-slate-400 mt-0.5">그라운딩 소스 URL 최대 4개 본문 하단 첨부</p>
+                <p class="text-[11px] text-slate-400 mt-0.5">RSS 참고 기사 최대 3개 본문 하단 첨부</p>
               </div>
             </label>
 
@@ -279,6 +286,14 @@ const hourOptions = Array.from({ length: 25 }, (_, i) => i)
                   class="w-20 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white text-center focus:outline-none focus:border-violet-500" />
                 <span class="text-slate-400 text-xs">× 3진영 = <span class="text-violet-400 font-bold">{{ estPosts }}</span>개</span>
               </div>
+              <!-- RPD 할당량 경고 (무료 RPD=20 기준) -->
+              <p class="text-[11px] mt-1.5"
+                :class="estPosts + estComments > 20 ? 'text-red-400' : estPosts + estComments > 15 ? 'text-amber-400' : 'text-slate-500'">
+                예상 일일 API 콜: {{ estPosts + estComments }}회
+                <template v-if="estPosts + estComments > 20"> ⚠️ 무료 RPD=20 초과 — flash-lite fallback 사용</template>
+                <template v-else-if="estPosts + estComments > 15"> ⚠️ RPD 75% 이상 사용 (주의)</template>
+                <template v-else> ✓ 무료 RPD=20 이내 안전</template>
+              </p>
             </div>
 
             <div>
@@ -345,7 +360,7 @@ const hourOptions = Array.from({ length: 25 }, (_, i) => i)
         <div class="bg-slate-900 rounded-2xl border border-slate-800 p-5 space-y-4">
           <div class="flex items-start justify-between">
             <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wider">진영별 주제 키워드</h2>
-            <p class="text-[11px] text-slate-500">그라운딩 ON: 키워드를 뉴스 검색어로 활용</p>
+            <p class="text-[11px] text-slate-500">뉴스 컨텍스트 ON: RSS에서 관련 기사 자동 수집</p>
           </div>
           <div v-for="f in factions" :key="f.value" class="space-y-2">
             <p class="text-xs font-semibold" :style="{ color: f.color }">{{ f.emoji }} {{ f.label }}</p>

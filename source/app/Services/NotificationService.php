@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Events\UserNotificationSent;
 use App\Models\Comment;
 use App\Models\Notification;
 use App\Models\Post;
@@ -31,7 +32,7 @@ class NotificationService
 
         $boardSlug = $post->board?->slug ?? '';
 
-        Notification::create([
+        $this->createAndBroadcast([
             'user_id' => $recipient->id,
             'type'    => 'comment',
             'title'   => '새 댓글이 달렸습니다',
@@ -67,7 +68,7 @@ class NotificationService
         $post->loadMissing('board');
         $boardSlug = $post->board?->slug ?? '';
 
-        Notification::create([
+        $this->createAndBroadcast([
             'user_id' => $recipient->id,
             'type'    => 'reply',
             'title'   => '내 댓글에 답글이 달렸습니다',
@@ -97,7 +98,7 @@ class NotificationService
 
         $boardSlug = $post->board?->slug ?? '';
 
-        Notification::create([
+        $this->createAndBroadcast([
             'user_id' => $recipient->id,
             'type'    => 'hot',
             'title'   => '내 게시글이 인기글이 됐습니다! 🔥',
@@ -108,6 +109,22 @@ class NotificationService
                 'board_slug' => $boardSlug,
             ],
         ]);
+    }
+
+    /**
+     * 알림을 생성하고 즉시 실시간(WebSocket) 브로드캐스트로 전송.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function createAndBroadcast(array $data): Notification
+    {
+        $notification = Notification::create($data);
+
+        $unreadCount = Notification::forUser($data['user_id'])->unread()->count();
+
+        broadcast(new UserNotificationSent($notification, $unreadCount));
+
+        return $notification;
     }
 
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Events\PollVoteUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\Poll;
 use App\Models\PollVote;
@@ -84,6 +85,8 @@ class PollController extends Controller
             unset($option);
             $poll->update(['options' => $options]);
         });
+
+        broadcast(new PollVoteUpdated($poll->fresh()));
 
         return response()->json([
             'message' => '투표가 완료되었습니다.',

@@ -1,8 +1,9 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import FactionBadge from '@/Components/FactionBadge.vue'
+import { echo } from '@/echo'
 
 defineOptions({ layout: AppLayout })
 
@@ -28,7 +29,8 @@ const myFaction = computed(() => {
   return faction ? (factionConfig[faction] ?? null) : null
 })
 
-// Poll voting
+// Poll voting — activePolls를 로컬 반응형 상태로 복사해 실시간 갱신 가능하게 함
+const polls = ref(props.activePolls.map(p => ({ ...p, options: p.options.map(o => ({ ...o })) })))
 const pollForm = useForm({ option_id: null })
 const votedPolls = ref({})
 
@@ -46,6 +48,29 @@ const votePercent = (option, options) => {
   if (!total) return 0
   return Math.round((option.vote_count / total) * 100)
 }
+
+// ── 실시간(WebSocket) 투표 결과 구독 ─────────────────────────
+// PollVoteUpdated 브로드캐스트: { poll_id, options: [{id,label,vote_count,faction_counts}], total_vote_count }
+const pollChannels = []
+
+function applyPollUpdate(payload) {
+  const target = polls.value.find(p => p.id === payload.poll_id)
+  if (!target) return
+  target.options = payload.options
+  target.total_vote_count = payload.total_vote_count
+}
+
+onMounted(() => {
+  polls.value.forEach(poll => {
+    const channel = echo.channel(`polls.${poll.id}`)
+    channel.listen('.PollVoteUpdated', applyPollUpdate)
+    pollChannels.push(poll.id)
+  })
+})
+
+onBeforeUnmount(() => {
+  pollChannels.forEach(id => echo.leave(`polls.${id}`))
+})
 </script>
 
 <template>
@@ -239,7 +264,7 @@ const votePercent = (option, options) => {
       <!-- Right: Sidebar -->
       <aside class="hidden lg:block w-80 flex-shrink-0 space-y-6">
         <!-- Active Polls -->
-        <div v-for="poll in activePolls" :key="poll.id" class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+        <div v-for="poll in polls" :key="poll.id" class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl overflow-hidden">
           <div class="px-5 py-4 border-b border-gray-200 dark:border-slate-800 flex items-center gap-2">
             <span class="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span>
             <h3 class="text-sm font-bold text-slate-900 dark:text-white">실시간 투표</h3>

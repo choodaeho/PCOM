@@ -38,12 +38,36 @@ class BoardController extends Controller
                 ->first(fn ($b) => $b->allowed_faction === $user->political_type->value);
         }
 
-        // 활성 여론조사 목록 (최근 3개)
+        // 활성 여론조사 목록 (최근 3개) — 진영별 득표 분포(faction_counts) 포함
         $activePolls = Poll::active()
             ->latest()
             ->take(3)
             ->get()
-            ->map(fn ($p) => $p->only(['id', 'question', 'options', 'total_vote_count', 'ends_at']))
+            ->map(function (Poll $p) {
+                $statsByFaction = $p->voteStatsByFaction();
+
+                // 진영별 → [option_id => count] 를 옵션별 → [faction => count] 로 전치
+                $factionCountsByOption = [];
+                foreach ($statsByFaction as $faction => $counts) {
+                    foreach ($counts as $optionId => $cnt) {
+                        $factionCountsByOption[$optionId][$faction] = $cnt;
+                    }
+                }
+
+                $options = collect($p->options)->map(function (array $option) use ($factionCountsByOption) {
+                    $option['faction_counts'] = $factionCountsByOption[$option['id']] ?? [];
+
+                    return $option;
+                })->values()->toArray();
+
+                return [
+                    'id'               => $p->id,
+                    'question'         => $p->title,
+                    'options'          => $options,
+                    'total_vote_count' => $p->total_vote_count,
+                    'ends_at'          => $p->ends_at,
+                ];
+            })
             ->values();
 
         return Inertia::render('Boards/Index', [

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Events\PollVoteUpdated;
 use App\Models\Poll;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -48,6 +49,8 @@ class PollController extends Controller
                 'total_vote_count' => $poll->total_vote_count + 1,
             ]);
         });
+
+        broadcast(new PollVoteUpdated($poll->fresh()));
 
         return back()->with('success', '투표가 완료되었습니다.');
     }

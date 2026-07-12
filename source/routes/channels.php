@@ -64,7 +64,7 @@ Broadcast::channel('boards.{boardSlug}', function ($user, string $boardSlug) {
 // Event: UserNotification
 // ─────────────────────────────────────────────
 Broadcast::channel('users.{userId}', function ($user, int $userId) {
-    return (int) $user->id === $userId;
+    return $user !== null && (int) $user->id === $userId;
 });
 
 // ─────────────────────────────────────────────

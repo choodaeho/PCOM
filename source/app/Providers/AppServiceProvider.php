@@ -12,6 +12,7 @@ use App\Observers\PostObserver;
 use App\Observers\VoteObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -47,6 +48,15 @@ class AppServiceProvider extends ServiceProvider
         Post::observe(PostObserver::class);
         Comment::observe(CommentObserver::class);
         Vote::observe(VoteObserver::class);
+
+        // -----------------------------------------------------------------
+        // 브로드캐스트 채널 인증 라우트 (Laravel Reverb)
+        // -----------------------------------------------------------------
+        // Laravel 11 스켈레톤은 기본적으로 /broadcasting/auth 라우트를
+        // 등록하지 않으므로 여기서 직접 등록. routes/channels.php에
+        // Private/Presence 채널 인가 로직이 정의되어 있음.
+        Broadcast::routes();
+        require base_path('routes/channels.php');
 
         // -----------------------------------------------------------------
         // Gemini API 큐 Job Rate Limiter

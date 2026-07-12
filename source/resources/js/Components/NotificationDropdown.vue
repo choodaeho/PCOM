@@ -1,7 +1,8 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { router } from '@inertiajs/vue3'
+import { router, usePage } from '@inertiajs/vue3'
 import axios from 'axios'
+import { echo } from '@/echo'
 
 // ── Props / Emits ──────────────────────────────────────────────
 const props = defineProps({
@@ -20,6 +21,12 @@ const toast      = ref({ show: false, title: '', message: '', url: '' })
 let toastTimer   = null
 let prevCount    = null   // null = 초기화 전 (첫 폴링 시 토스트 표시 안 함)
 let pollTimer    = null
+
+// ── 실시간(WebSocket) 구독 ───────────────────────────────────
+const page = usePage()
+const userId = computed(() => page.props.auth?.user?.id)
+let echoChannel = null
+let realtimeConnected = false
 
 // ── Computed ──────────────────────────────────────────────────
 const hasUnread = computed(() => unreadCount.value > 0)
@@ -59,6 +66,25 @@ async function showLatestToast() {
   } catch {
     triggerToast('새 알림이 있습니다', '', '')
   }
+}
+
+// 실시간 알림 수신 처리 (UserNotificationSent 브로드캐스트)
+function handleRealtimeNotification(payload) {
+  const notif = payload?.notification
+  if (!notif) return
+
+  unreadCount.value = payload.unread_count ?? unreadCount.value + 1
+  prevCount = unreadCount.value
+  emit('unread-change', unreadCount.value)
+
+  // 패널이 열려 있으면 목록에 즉시 반영
+  if (props.open || loaded.value) {
+    if (!notifications.value.some(n => n.id === notif.id)) {
+      notifications.value.unshift(notif)
+    }
+  }
+
+  triggerToast(notif.title, notif.message ?? '', notif.url ?? '')
 }
 
 function triggerToast(title, message, url) {
@@ -178,11 +204,37 @@ function typeIcon(type) {
 // ── Lifecycle ─────────────────────────────────────────────────
 onMounted(() => {
   fetchUnreadCount()
-  pollTimer = setInterval(fetchUnreadCount, 30000)
+
+  // 실시간 WebSocket 구독 (Reverb). 연결되면 폴링은 백업 용도로만 저빈도 유지.
+  if (userId.value) {
+    try {
+      echoChannel = echo.private(`users.${userId.value}`)
+      echoChannel
+        .listen('.UserNotification', handleRealtimeNotification)
+        .subscribed(() => { realtimeConnected = true })
+        .error(() => { realtimeConnected = false })
+    } catch {
+      realtimeConnected = false
+    }
+  }
+
+  // 폴링: 실시간 구독이 백업 역할. 연결 성공 시 저빈도(2분)로 전환, 실패 시 30초 유지.
+  pollTimer = setInterval(() => {
+    fetchUnreadCount()
+  }, 30000)
+  setTimeout(() => {
+    if (realtimeConnected && pollTimer) {
+      clearInterval(pollTimer)
+      pollTimer = setInterval(() => fetchUnreadCount(), 120000)
+    }
+  }, 5000)
 })
 onBeforeUnmount(() => {
   if (pollTimer) clearInterval(pollTimer)
   if (toastTimer) clearTimeout(toastTimer)
+  if (userId.value) {
+    echo.leave(`users.${userId.value}`)
+  }
 })
 </script>
 
